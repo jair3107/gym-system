@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Http\Requests\StoreClienteRequest;
 use App\Http\Requests\UpdateClienteRequest;
 use App\Models\Cliente;
+use App\Models\Puesto;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -89,7 +90,7 @@ class ClienteController extends Controller
      */
     public function show(Cliente $cliente): View
     {
-        $cliente->load(['user', 'entrenador', 'nutriologo']);
+        $cliente->load(['user', 'entrenador.empleado', 'nutriologo.empleado']);
 
         return view('clientes.show', ['cliente' => $cliente]);
     }
@@ -171,7 +172,8 @@ class ClienteController extends Controller
         return [
             'estados' => ClienteEstado::cases(),
             'generos' => Genero::cases(),
-            'empleados' => User::staff()->orderBy('name')->get(),
+            'entrenadores' => User::conPuesto(Puesto::ENTRENADOR)->orderBy('name')->get(),
+            'nutriologos' => User::conPuesto(Puesto::NUTRIOLOGO)->orderBy('name')->get(),
         ];
     }
 

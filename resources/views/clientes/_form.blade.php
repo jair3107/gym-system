@@ -132,12 +132,15 @@
         <select id="entrenador_id" name="entrenador_id"
                 class="select mt-1 block">
             <option value="">— Ninguno —</option>
-            @foreach ($empleados as $empleado)
-                <option value="{{ $empleado->id }}" @selected(old('entrenador_id', $cliente?->entrenador_id) == $empleado->id)>
-                    {{ $empleado->name }}
+            @foreach ($entrenadores as $entrenador)
+                <option value="{{ $entrenador->id }}" @selected(old('entrenador_id', $cliente?->entrenador_id) == $entrenador->id)>
+                    {{ $entrenador->name }}
                 </option>
             @endforeach
         </select>
+        @if ($entrenadores->isEmpty())
+            <p class="mt-1 text-xs text-zinc-500">No hay empleados con puesto Entrenador.</p>
+        @endif
         <x-input-error :messages="$errors->get('entrenador_id')" class="mt-2" />
     </div>
 
@@ -146,12 +149,15 @@
         <select id="nutriologo_id" name="nutriologo_id"
                 class="select mt-1 block">
             <option value="">— Ninguno —</option>
-            @foreach ($empleados as $empleado)
-                <option value="{{ $empleado->id }}" @selected(old('nutriologo_id', $cliente?->nutriologo_id) == $empleado->id)>
-                    {{ $empleado->name }}
+            @foreach ($nutriologos as $nutriologo)
+                <option value="{{ $nutriologo->id }}" @selected(old('nutriologo_id', $cliente?->nutriologo_id) == $nutriologo->id)>
+                    {{ $nutriologo->name }}
                 </option>
             @endforeach
         </select>
+        @if ($nutriologos->isEmpty())
+            <p class="mt-1 text-xs text-zinc-500">No hay empleados con puesto Nutriólogo.</p>
+        @endif
         <x-input-error :messages="$errors->get('nutriologo_id')" class="mt-2" />
     </div>
 

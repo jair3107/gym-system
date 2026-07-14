@@ -5,7 +5,7 @@ namespace App\Http\Requests;
 use App\Enums\ClienteEstado;
 use App\Enums\Genero;
 use App\Enums\UserRole;
-use App\Models\User;
+use App\Models\Puesto;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -15,6 +15,16 @@ class StoreClienteRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user()?->hasRole(UserRole::SuperAdmin, UserRole::Empleado) ?? false;
+    }
+
+    /**
+     * Regla: el usuario asignado debe tener el puesto indicado (por slug).
+     */
+    protected function tienePuestoRule(string $slug)
+    {
+        $puestoId = Puesto::where('slug', $slug)->value('id');
+
+        return Rule::exists('empleado_puesto', 'user_id')->where('puesto_id', $puestoId);
     }
 
     /**
@@ -38,8 +48,8 @@ class StoreClienteRequest extends FormRequest
             'contacto_emergencia_telefono' => ['nullable', 'string', 'max:30'],
             'fecha_ingreso' => ['required', 'date'],
             'estado' => ['required', Rule::enum(ClienteEstado::class)],
-            'entrenador_id' => ['nullable', Rule::exists('users', 'id')->where(fn ($q) => $q->whereIn('role', [UserRole::SuperAdmin->value, UserRole::Empleado->value]))],
-            'nutriologo_id' => ['nullable', Rule::exists('users', 'id')->where(fn ($q) => $q->whereIn('role', [UserRole::SuperAdmin->value, UserRole::Empleado->value]))],
+            'entrenador_id' => ['nullable', $this->tienePuestoRule(Puesto::ENTRENADOR)],
+            'nutriologo_id' => ['nullable', $this->tienePuestoRule(Puesto::NUTRIOLOGO)],
             'notas' => ['nullable', 'string'],
         ];
     }

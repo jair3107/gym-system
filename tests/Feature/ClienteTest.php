@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\ClienteEstado;
 use App\Enums\UserRole;
 use App\Models\Cliente;
+use App\Models\Puesto;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -33,6 +34,15 @@ class ClienteTest extends TestCase
             ->get(route('clientes.index'))
             ->assertOk()
             ->assertViewIs('clientes.index');
+    }
+
+    public function test_los_formularios_de_cliente_cargan(): void
+    {
+        $cliente = Cliente::factory()->create();
+
+        $this->actingAs($this->staff())->get(route('clientes.create'))->assertOk();
+        $this->actingAs($this->staff())->get(route('clientes.show', $cliente))->assertOk();
+        $this->actingAs($this->staff())->get(route('clientes.edit', $cliente))->assertOk();
     }
 
     public function test_el_staff_puede_registrar_un_cliente_con_su_cuenta(): void
@@ -104,5 +114,44 @@ class ClienteTest extends TestCase
 
         $this->assertDatabaseMissing('users', ['id' => $userId]);
         $this->assertDatabaseMissing('clientes', ['id' => $cliente->id]);
+    }
+
+    public function test_no_se_puede_asignar_como_entrenador_a_alguien_sin_ese_puesto(): void
+    {
+        // Empleado con puesto nutriólogo (no entrenador).
+        $empleado = User::factory()->create(['role' => UserRole::Empleado]);
+        $empleado->puestos()->attach(Puesto::create(['nombre' => 'Nutriólogo', 'slug' => Puesto::NUTRIOLOGO]));
+
+        $this->actingAs($this->staff())
+            ->post(route('clientes.store'), [
+                'name' => 'Test',
+                'email' => 'test@example.com',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+                'fecha_ingreso' => now()->format('Y-m-d'),
+                'estado' => ClienteEstado::Activo->value,
+                'entrenador_id' => $empleado->id,
+            ])
+            ->assertSessionHasErrors('entrenador_id');
+    }
+
+    public function test_se_puede_asignar_un_entrenador_con_el_puesto_correcto(): void
+    {
+        $entrenador = User::factory()->create(['role' => UserRole::Empleado]);
+        $entrenador->puestos()->attach(Puesto::create(['nombre' => 'Entrenador', 'slug' => Puesto::ENTRENADOR]));
+
+        $this->actingAs($this->staff())
+            ->post(route('clientes.store'), [
+                'name' => 'Test',
+                'email' => 'test2@example.com',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+                'fecha_ingreso' => now()->format('Y-m-d'),
+                'estado' => ClienteEstado::Activo->value,
+                'entrenador_id' => $entrenador->id,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('clientes', ['entrenador_id' => $entrenador->id]);
     }
 }

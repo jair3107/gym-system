@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -61,11 +63,68 @@ class User extends Authenticatable
     }
 
     /**
+     * The employee profile linked to this user account (if it is an empleado).
+     */
+    public function empleado(): HasOne
+    {
+        return $this->hasOne(Empleado::class);
+    }
+
+    /**
+     * Puestos (especialidades) asignados a este empleado.
+     */
+    public function puestos(): BelongsToMany
+    {
+        return $this->belongsToMany(Puesto::class, 'empleado_puesto');
+    }
+
+    /**
+     * Clientes que tienen a este usuario como entrenador (sus alumnos).
+     */
+    public function alumnos(): HasMany
+    {
+        return $this->hasMany(Cliente::class, 'entrenador_id');
+    }
+
+    /**
+     * Clientes que tienen a este usuario como nutriólogo (sus pacientes).
+     */
+    public function pacientes(): HasMany
+    {
+        return $this->hasMany(Cliente::class, 'nutriologo_id');
+    }
+
+    /**
+     * ¿El empleado tiene alguno de estos puestos (por slug)?
+     */
+    public function hasPuesto(string ...$slugs): bool
+    {
+        return $this->puestos->whereIn('slug', $slugs)->isNotEmpty();
+    }
+
+    /**
+     * ¿Puede gestionar empleados? El dueño (superadmin) o un empleado con
+     * puesto "admin".
+     */
+    public function puedeGestionarEmpleados(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPuesto(Puesto::ADMIN);
+    }
+
+    /**
      * Scope: only users with the empleado (or superadmin) role — those who can
      * be assigned as entrenador or nutriólogo.
      */
     public function scopeStaff(Builder $query): Builder
     {
         return $query->whereIn('role', [UserRole::SuperAdmin->value, UserRole::Empleado->value]);
+    }
+
+    /**
+     * Scope: usuarios que tienen el puesto indicado (por slug).
+     */
+    public function scopeConPuesto(Builder $query, string $slug): Builder
+    {
+        return $query->whereHas('puestos', fn (Builder $q) => $q->where('slug', $slug));
     }
 }

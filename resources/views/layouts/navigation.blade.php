@@ -21,6 +21,11 @@
                             {{ __('Clientes') }}
                         </x-nav-link>
                     @endif
+                    @if (auth()->user()->puedeGestionarEmpleados())
+                        <x-nav-link :href="route('empleados.index')" :active="request()->routeIs('empleados.*') || request()->routeIs('puestos.*')">
+                            {{ __('Empleados') }}
+                        </x-nav-link>
+                    @endif
                 </div>
             </div>
 
@@ -86,6 +91,11 @@
             @if (auth()->user()->hasRole(\App\Enums\UserRole::SuperAdmin, \App\Enums\UserRole::Empleado))
                 <x-responsive-nav-link :href="route('clientes.index')" :active="request()->routeIs('clientes.*')">
                     {{ __('Clientes') }}
+                </x-responsive-nav-link>
+            @endif
+            @if (auth()->user()->puedeGestionarEmpleados())
+                <x-responsive-nav-link :href="route('empleados.index')" :active="request()->routeIs('empleados.*') || request()->routeIs('puestos.*')">
+                    {{ __('Empleados') }}
                 </x-responsive-nav-link>
             @endif
         </div>

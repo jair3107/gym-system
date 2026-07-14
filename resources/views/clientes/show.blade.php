@@ -72,13 +72,26 @@
                             @if ($cliente->contacto_emergencia_telefono) · {{ $cliente->contacto_emergencia_telefono }} @endif
                         </dd>
                     </div>
+                    @php($puedeVerEmpleados = auth()->user()->puedeGestionarEmpleados())
                     <div>
                         <dt class="text-zinc-500">Entrenador</dt>
-                        <dd class="text-zinc-200">{{ $cliente->entrenador?->name ?? '—' }}</dd>
+                        <dd class="text-zinc-200">
+                            @if ($cliente->entrenador && $puedeVerEmpleados && $cliente->entrenador->empleado)
+                                <a href="{{ route('empleados.show', $cliente->entrenador->empleado) }}" class="text-gold-400 hover:text-gold-300">{{ $cliente->entrenador->name }}</a>
+                            @else
+                                {{ $cliente->entrenador?->name ?? '—' }}
+                            @endif
+                        </dd>
                     </div>
                     <div>
                         <dt class="text-zinc-500">Nutriólogo</dt>
-                        <dd class="text-zinc-200">{{ $cliente->nutriologo?->name ?? '—' }}</dd>
+                        <dd class="text-zinc-200">
+                            @if ($cliente->nutriologo && $puedeVerEmpleados && $cliente->nutriologo->empleado)
+                                <a href="{{ route('empleados.show', $cliente->nutriologo->empleado) }}" class="text-gold-400 hover:text-gold-300">{{ $cliente->nutriologo->name }}</a>
+                            @else
+                                {{ $cliente->nutriologo?->name ?? '—' }}
+                            @endif
+                        </dd>
                     </div>
                     <div class="sm:col-span-2">
                         <dt class="text-zinc-500">Notas</dt>
