@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Empleado\DashboardController as EmpleadoDashboardController;
 use App\Http\Controllers\Cliente\DashboardController as ClienteDashboardController;
+use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +25,11 @@ Route::middleware(['auth', 'role:superadmin'])->prefix('admin')->name('admin.')-
 // Empleado routes
 Route::middleware(['auth', 'role:superadmin,empleado'])->prefix('empleado')->name('empleado.')->group(function () {
     Route::get('/dashboard', [EmpleadoDashboardController::class, 'index'])->name('dashboard');
+});
+
+// Gestión de clientes (staff: superadmin + empleado)
+Route::middleware(['auth', 'role:superadmin,empleado'])->group(function () {
+    Route::resource('clientes', ClienteController::class);
 });
 
 // Cliente routes
