@@ -112,6 +112,23 @@ class User extends Authenticatable
     }
 
     /**
+     * ¿Puede gestionar el módulo de nutrición (dietas)? El dueño (superadmin)
+     * o un empleado con puesto "nutriologo".
+     */
+    public function puedeGestionarNutricion(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPuesto(Puesto::NUTRIOLOGO);
+    }
+
+    /**
+     * Dietas creadas por este usuario (como nutriólogo).
+     */
+    public function dietas(): HasMany
+    {
+        return $this->hasMany(Dieta::class, 'nutriologo_id');
+    }
+
+    /**
      * Scope: only users with the empleado (or superadmin) role — those who can
      * be assigned as entrenador or nutriólogo.
      */

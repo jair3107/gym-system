@@ -77,6 +77,24 @@ class EmpleadoTest extends TestCase
         );
     }
 
+    public function test_el_superadmin_puede_editar_el_salario_de_un_empleado(): void
+    {
+        $empleado = Empleado::factory()->create(['salario' => 10000]);
+        $puesto = Puesto::create(['nombre' => 'Entrenador', 'slug' => Puesto::ENTRENADOR]);
+        $empleado->user->puestos()->attach($puesto);
+
+        $this->actingAs($this->superadmin())->put(route('empleados.update', $empleado), [
+            'name' => $empleado->user->name,
+            'email' => $empleado->user->email,
+            'fecha_contratacion' => $empleado->fecha_contratacion->format('Y-m-d'),
+            'salario' => 21500.50,
+            'estado' => $empleado->estado->value,
+            'puestos' => [$puesto->id],
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('empleados', ['id' => $empleado->id, 'salario' => 21500.50]);
+    }
+
     public function test_las_pantallas_de_empleado_y_puestos_cargan(): void
     {
         $empleado = Empleado::factory()->create();

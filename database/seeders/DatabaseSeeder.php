@@ -31,21 +31,14 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Admin', 'password' => Hash::make('password'), 'role' => UserRole::SuperAdmin],
         );
 
-        // Empleado demo: entrenador + nutriólogo (aparece en ambos desplegables de cliente).
-        $empleado = User::firstOrCreate(
-            ['email' => 'empleado@gym.test'],
-            ['name' => 'Empleado', 'password' => Hash::make('password'), 'role' => UserRole::Empleado],
-        );
-        $empleado->empleado()->firstOrCreate([], [
-            'telefono' => '555-0200',
-            'fecha_contratacion' => now()->subYear(),
-            'salario' => 15000,
-            'estado' => EmpleadoEstado::Activo,
-        ]);
-        $empleado->puestos()->syncWithoutDetaching([
-            $puestos[Puesto::ENTRENADOR]->id,
-            $puestos[Puesto::NUTRIOLOGO]->id,
-        ]);
+        // Plantilla: dos entrenadores y dos nutriólogos.
+        $larry = $this->crearEmpleado('Larry Langosta', 'larry@gym.test', Puesto::ENTRENADOR, 14000, $puestos);
+        $arnold = $this->crearEmpleado('Arnold Schwarzenegger', 'arnold@gym.test', Puesto::ENTRENADOR, 18000, $puestos);
+        $sonia = $this->crearEmpleado('Sonia Zanahoria', 'sonia@gym.test', Puesto::NUTRIOLOGO, 15000, $puestos);
+        $benito = $this->crearEmpleado('Benito Brócoli', 'benito@gym.test', Puesto::NUTRIOLOGO, 13500, $puestos);
+
+        // Reemplazo del empleado demo anterior: reasigna sus clientes y lo elimina.
+        $this->reemplazarEmpleadoLegacy($larry, $sonia);
 
         // Cliente de demo con perfil completo.
         $clienteUser = User::firstOrCreate(
@@ -59,14 +52,119 @@ class DatabaseSeeder extends Seeder
                 'telefono' => '555-0100',
                 'fecha_ingreso' => now()->subMonths(3),
                 'estado' => ClienteEstado::Activo,
-                'entrenador_id' => $empleado->id,
-                'nutriologo_id' => $empleado->id,
+                'entrenador_id' => $larry->id,
+                'nutriologo_id' => $sonia->id,
             ],
         );
 
-        // Clientes de ejemplo, asignados al empleado demo como entrenador.
-        Cliente::factory()
-            ->count(15)
-            ->create(['entrenador_id' => $empleado->id]);
+        // Clientes de ejemplo, repartidos entre los entrenadores y nutriólogos.
+        if (Cliente::count() <= 1) {
+            Cliente::factory()
+                ->count(16)
+                ->sequence(
+                    ['entrenador_id' => $larry->id, 'nutriologo_id' => $sonia->id],
+                    ['entrenador_id' => $arnold->id, 'nutriologo_id' => $benito->id],
+                )
+                ->create();
+        }
+
+        // Datos demo de nutrición: una dieta de Sonia y un seguimiento con progreso.
+        $this->sembrarNutricionDemo($sonia, $clienteUser->cliente);
+    }
+
+    /**
+     * Crea una dieta y un seguimiento de ejemplo para poder explorar el módulo.
+     */
+    protected function sembrarNutricionDemo(User $nutriologo, Cliente $paciente): void
+    {
+        if ($nutriologo->dietas()->exists()) {
+            return;
+        }
+
+        $dieta = $nutriologo->dietas()->create([
+            'nombre' => 'Dieta hipocalórica 1500 kcal',
+            'objetivo' => 'Pérdida de grasa',
+            'calorias_objetivo' => 1500,
+            'descripcion' => 'Plan base de ejemplo.',
+            'activa' => true,
+            'plan' => [
+                'horarios' => [
+                    'colacion_1' => '7:00, 7:30',
+                    'desayuno' => '8:00 - 9:00',
+                    'comida' => '14:00 - 15:00',
+                    'cena' => '20:00 - 21:00',
+                ],
+                'dias' => [
+                    'lunes' => [
+                        'colacion_1' => '5 almendras, 1 gelatina',
+                        'desayuno' => '2 huevos revueltos y vaso de leche',
+                        'comida' => 'Pechuga a la plancha con ensalada',
+                        'cena' => 'Yogur griego con fruta',
+                    ],
+                    'miercoles' => [
+                        'desayuno' => 'Avena con plátano',
+                        'comida' => 'Salmón con verduras al vapor',
+                    ],
+                ],
+            ],
+        ]);
+
+        $seguimiento = \App\Models\SeguimientoNutricion::create([
+            'nutriologo_id' => $nutriologo->id,
+            'cliente_id' => $paciente->id,
+            'dieta_id' => $dieta->id,
+            'fecha_inicio' => now()->subWeeks(4),
+            'peso_inicial' => 84.0,
+            'peso_meta' => 76.0,
+            'estado' => \App\Enums\SeguimientoEstado::Activo,
+            'notas' => 'Seguimiento de ejemplo.',
+        ]);
+
+        $seguimiento->mediciones()->createMany([
+            ['fecha' => now()->subWeeks(3), 'peso' => 82.6, 'notas' => 'Buena adherencia'],
+            ['fecha' => now()->subWeeks(2), 'peso' => 81.4],
+            ['fecha' => now()->subWeek(), 'peso' => 80.2, 'notas' => 'Sin antojos'],
+        ]);
+    }
+
+    /**
+     * Crea (o recupera) un empleado con su perfil y un puesto asignado.
+     */
+    protected function crearEmpleado(string $nombre, string $email, string $puestoSlug, int $salario, $puestos): User
+    {
+        $user = User::firstOrCreate(
+            ['email' => $email],
+            ['name' => $nombre, 'password' => Hash::make('password'), 'role' => UserRole::Empleado],
+        );
+
+        $user->empleado()->firstOrCreate([], [
+            'telefono' => '555-0'.rand(100, 999),
+            'fecha_contratacion' => now()->subMonths(rand(3, 24)),
+            'salario' => $salario,
+            'estado' => EmpleadoEstado::Activo,
+        ]);
+
+        $user->puestos()->syncWithoutDetaching([$puestos[$puestoSlug]->id]);
+
+        return $user;
+    }
+
+    /**
+     * Migra los clientes del antiguo empleado demo a los nuevos trabajadores
+     * y elimina esa cuenta genérica si aún existe.
+     */
+    protected function reemplazarEmpleadoLegacy(User $entrenador, User $nutriologo): void
+    {
+        $legacy = User::where('email', 'empleado@gym.test')->first();
+
+        if (! $legacy) {
+            return;
+        }
+
+        Cliente::where('entrenador_id', $legacy->id)->update(['entrenador_id' => $entrenador->id]);
+        Cliente::where('nutriologo_id', $legacy->id)->update(['nutriologo_id' => $nutriologo->id]);
+
+        // Al borrar el user caen su perfil de empleado y los puestos por FK.
+        $legacy->delete();
     }
 }

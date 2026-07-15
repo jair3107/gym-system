@@ -4,9 +4,12 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Empleado\DashboardController as EmpleadoDashboardController;
 use App\Http\Controllers\Cliente\DashboardController as ClienteDashboardController;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\DietaController;
 use App\Http\Controllers\EmpleadoController;
+use App\Http\Controllers\MedicionNutricionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PuestoController;
+use App\Http\Controllers\SeguimientoNutricionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -38,6 +41,20 @@ Route::middleware(['auth', 'role:superadmin,empleado'])->group(function () {
 Route::middleware(['auth', 'gestiona.empleados'])->group(function () {
     Route::resource('puestos', PuestoController::class)->except('show');
     Route::resource('empleados', EmpleadoController::class);
+});
+
+// Nutrición: dietas y seguimientos (dueño o empleado con puesto nutriólogo)
+Route::middleware(['auth', 'gestiona.nutricion'])->group(function () {
+    Route::resource('dietas', DietaController::class);
+
+    Route::resource('seguimientos-nutricion', SeguimientoNutricionController::class)
+        ->parameters(['seguimientos-nutricion' => 'seguimiento']);
+
+    // Mediciones de progreso, anidadas al seguimiento.
+    Route::post('seguimientos-nutricion/{seguimiento}/mediciones', [MedicionNutricionController::class, 'store'])
+        ->name('seguimientos-nutricion.mediciones.store');
+    Route::delete('mediciones-nutricion/{medicion}', [MedicionNutricionController::class, 'destroy'])
+        ->name('mediciones-nutricion.destroy');
 });
 
 // Cliente routes

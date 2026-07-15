@@ -21,6 +21,14 @@
                             {{ __('Clientes') }}
                         </x-nav-link>
                     @endif
+                    @if (auth()->user()->puedeGestionarNutricion())
+                        <x-nav-link :href="route('dietas.index')" :active="request()->routeIs('dietas.*')">
+                            {{ __('Dietas') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('seguimientos-nutricion.index')" :active="request()->routeIs('seguimientos-nutricion.*')">
+                            {{ __('Seguimientos') }}
+                        </x-nav-link>
+                    @endif
                     @if (auth()->user()->puedeGestionarEmpleados())
                         <x-nav-link :href="route('empleados.index')" :active="request()->routeIs('empleados.*') || request()->routeIs('puestos.*')">
                             {{ __('Empleados') }}
@@ -91,6 +99,14 @@
             @if (auth()->user()->hasRole(\App\Enums\UserRole::SuperAdmin, \App\Enums\UserRole::Empleado))
                 <x-responsive-nav-link :href="route('clientes.index')" :active="request()->routeIs('clientes.*')">
                     {{ __('Clientes') }}
+                </x-responsive-nav-link>
+            @endif
+            @if (auth()->user()->puedeGestionarNutricion())
+                <x-responsive-nav-link :href="route('dietas.index')" :active="request()->routeIs('dietas.*')">
+                    {{ __('Dietas') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('seguimientos-nutricion.index')" :active="request()->routeIs('seguimientos-nutricion.*')">
+                    {{ __('Seguimientos') }}
                 </x-responsive-nav-link>
             @endif
             @if (auth()->user()->puedeGestionarEmpleados())

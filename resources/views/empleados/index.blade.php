@@ -50,6 +50,7 @@
                                 <th class="px-4 py-3">Empleado</th>
                                 <th class="px-4 py-3">Puestos</th>
                                 <th class="px-4 py-3">Teléfono</th>
+                                <th class="px-4 py-3 text-right">Salario</th>
                                 <th class="px-4 py-3">Estado</th>
                                 <th class="px-4 py-3 text-right">Acciones</th>
                             </tr>
@@ -78,6 +79,9 @@
                                         </div>
                                     </td>
                                     <td class="px-4 py-3 text-sm text-zinc-400">{{ $empleado->telefono ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-sm text-zinc-300 text-right whitespace-nowrap">
+                                        {{ $empleado->salario !== null ? '$'.number_format($empleado->salario, 2) : '—' }}
+                                    </td>
                                     <td class="px-4 py-3">
                                         <span class="badge {{ $empleado->estado->badgeClasses() }}">{{ $empleado->estado->label() }}</span>
                                     </td>
@@ -88,7 +92,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-4 py-8 text-center text-sm text-zinc-500">No hay empleados que coincidan.</td>
+                                    <td colspan="6" class="px-4 py-8 text-center text-sm text-zinc-500">No hay empleados que coincidan.</td>
                                 </tr>
                             @endforelse
                         </tbody>
