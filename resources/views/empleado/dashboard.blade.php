@@ -11,8 +11,10 @@
                 <div class="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gold-400/10 blur-2xl"></div>
                 <p class="text-sm text-gold-500 uppercase tracking-[0.3em] font-brand">AURUM Fitness Club</p>
                 <h3 class="mt-2 text-2xl font-brand font-bold text-white">Hola, {{ auth()->user()->name }}</h3>
-                <p class="mt-1 text-zinc-400">Rol: {{ auth()->user()->role->label() }}</p>
-                <a href="{{ route('clientes.index') }}" class="btn-gold mt-5">Gestionar clientes</a>
+                @if ($rol = auth()->user()->rolParaMostrar())
+                    <p class="mt-1 text-zinc-400">Rol: {{ $rol }}</p>
+                @endif
+                <a href="{{ route('clientes.index') }}" class="btn-gold mt-5">{{ auth()->user()->etiquetaClientes() }}</a>
             </div>
         </div>
     </div>

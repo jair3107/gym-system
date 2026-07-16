@@ -112,6 +112,81 @@ class User extends Authenticatable
     }
 
     /**
+     * ¿Puede dar de alta / editar / eliminar clientes? El dueño (superadmin) o
+     * un empleado con puesto "admin" o "cajero" (recepción).
+     */
+    public function puedeGestionarClientes(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPuesto(Puesto::ADMIN, Puesto::CAJERO);
+    }
+
+    /**
+     * Cómo se llama la sección de clientes para este usuario: "Alumnos" para el
+     * entrenador, "Pacientes" para el nutriólogo, "Clientes" para el resto.
+     */
+    public function etiquetaClientes(): string
+    {
+        if ($this->puedeGestionarClientes()) {
+            return 'Clientes';
+        }
+
+        $entrena = $this->hasPuesto(Puesto::ENTRENADOR);
+        $nutre = $this->hasPuesto(Puesto::NUTRIOLOGO);
+
+        if ($entrena && ! $nutre) {
+            return 'Alumnos';
+        }
+
+        if ($nutre && ! $entrena) {
+            return 'Pacientes';
+        }
+
+        return 'Clientes';
+    }
+
+    /**
+     * Texto de rol a mostrar en el panel: el/los puesto(s) reales del empleado,
+     * "Super Administrador" para el dueño, y null para el cliente (no se muestra).
+     */
+    public function rolParaMostrar(): ?string
+    {
+        if ($this->isSuperAdmin()) {
+            return 'Super Administrador';
+        }
+
+        if ($this->isCliente()) {
+            return null;
+        }
+
+        $nombres = $this->puestos->pluck('nombre')->all();
+
+        return $nombres === [] ? 'Empleado' : implode(', ', $nombres);
+    }
+
+    /**
+     * ¿Puede ver la ficha de este cliente? Los gestores ven a todos; el
+     * entrenador/nutriólogo ve a los suyos y a los que aún no tienen asignado.
+     */
+    public function puedeVerCliente(Cliente $cliente): bool
+    {
+        if ($this->puedeGestionarClientes()) {
+            return true;
+        }
+
+        if ($this->hasPuesto(Puesto::ENTRENADOR)
+            && ($cliente->entrenador_id === $this->id || $cliente->entrenador_id === null)) {
+            return true;
+        }
+
+        if ($this->hasPuesto(Puesto::NUTRIOLOGO)
+            && ($cliente->nutriologo_id === $this->id || $cliente->nutriologo_id === null)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * ¿Puede gestionar el módulo de nutrición (dietas)? El dueño (superadmin)
      * o un empleado con puesto "nutriologo".
      */
@@ -121,11 +196,28 @@ class User extends Authenticatable
     }
 
     /**
+     * ¿Puede gestionar el módulo de entrenamiento (rutinas)? El dueño (superadmin)
+     * o un empleado con puesto "entrenador".
+     */
+    public function puedeGestionarEntrenamiento(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPuesto(Puesto::ENTRENADOR);
+    }
+
+    /**
      * Dietas creadas por este usuario (como nutriólogo).
      */
     public function dietas(): HasMany
     {
         return $this->hasMany(Dieta::class, 'nutriologo_id');
+    }
+
+    /**
+     * Rutinas creadas por este usuario (como entrenador).
+     */
+    public function rutinas(): HasMany
+    {
+        return $this->hasMany(Rutina::class, 'entrenador_id');
     }
 
     /**

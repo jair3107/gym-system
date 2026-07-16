@@ -18,7 +18,7 @@
                     </x-nav-link>
                     @if (auth()->user()->hasRole(\App\Enums\UserRole::SuperAdmin, \App\Enums\UserRole::Empleado))
                         <x-nav-link :href="route('clientes.index')" :active="request()->routeIs('clientes.*')">
-                            {{ __('Clientes') }}
+                            {{ auth()->user()->etiquetaClientes() }}
                         </x-nav-link>
                     @endif
                     @if (auth()->user()->puedeGestionarNutricion())
@@ -26,7 +26,15 @@
                             {{ __('Dietas') }}
                         </x-nav-link>
                         <x-nav-link :href="route('seguimientos-nutricion.index')" :active="request()->routeIs('seguimientos-nutricion.*')">
-                            {{ __('Seguimientos') }}
+                            {{ __('Seg. nutrición') }}
+                        </x-nav-link>
+                    @endif
+                    @if (auth()->user()->puedeGestionarEntrenamiento())
+                        <x-nav-link :href="route('rutinas.index')" :active="request()->routeIs('rutinas.*')">
+                            {{ __('Rutinas') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('seguimientos-entrenamiento.index')" :active="request()->routeIs('seguimientos-entrenamiento.*')">
+                            {{ __('Seg. entrenamiento') }}
                         </x-nav-link>
                     @endif
                     @if (auth()->user()->puedeGestionarEmpleados())
@@ -58,7 +66,9 @@
                     <x-slot name="content">
                         <div class="px-4 py-2 border-b border-white/[0.06]">
                             <div class="text-sm font-medium text-zinc-200">{{ Auth::user()->name }}</div>
-                            <div class="text-xs text-gold-500 uppercase tracking-wider">{{ Auth::user()->role->label() }}</div>
+                            @if ($rol = Auth::user()->rolParaMostrar())
+                                <div class="text-xs text-gold-500 uppercase tracking-wider">{{ $rol }}</div>
+                            @endif
                         </div>
                         <x-dropdown-link :href="route('profile.edit')">
                             {{ __('Perfil') }}
@@ -98,7 +108,7 @@
             </x-responsive-nav-link>
             @if (auth()->user()->hasRole(\App\Enums\UserRole::SuperAdmin, \App\Enums\UserRole::Empleado))
                 <x-responsive-nav-link :href="route('clientes.index')" :active="request()->routeIs('clientes.*')">
-                    {{ __('Clientes') }}
+                    {{ auth()->user()->etiquetaClientes() }}
                 </x-responsive-nav-link>
             @endif
             @if (auth()->user()->puedeGestionarNutricion())
@@ -106,7 +116,15 @@
                     {{ __('Dietas') }}
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('seguimientos-nutricion.index')" :active="request()->routeIs('seguimientos-nutricion.*')">
-                    {{ __('Seguimientos') }}
+                    {{ __('Seg. nutrición') }}
+                </x-responsive-nav-link>
+            @endif
+            @if (auth()->user()->puedeGestionarEntrenamiento())
+                <x-responsive-nav-link :href="route('rutinas.index')" :active="request()->routeIs('rutinas.*')">
+                    {{ __('Rutinas') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('seguimientos-entrenamiento.index')" :active="request()->routeIs('seguimientos-entrenamiento.*')">
+                    {{ __('Seg. entrenamiento') }}
                 </x-responsive-nav-link>
             @endif
             @if (auth()->user()->puedeGestionarEmpleados())

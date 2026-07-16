@@ -24,7 +24,7 @@ class ClienteController extends Controller
      */
     public function index(Request $request): View
     {
-        $clientes = Cliente::query()
+        $clientes = $this->baseQuery($request->user())
             ->with(['user', 'entrenador', 'nutriologo'])
             ->buscar($request->input('buscar'))
             ->estado($request->input('estado'))
@@ -90,9 +90,38 @@ class ClienteController extends Controller
      */
     public function show(Cliente $cliente): View
     {
+        if (! auth()->user()->puedeVerCliente($cliente)) {
+            abort(403, 'Este cliente no está asignado a ti.');
+        }
+
         $cliente->load(['user', 'entrenador.empleado', 'nutriologo.empleado']);
 
         return view('clientes.show', ['cliente' => $cliente]);
+    }
+
+    /**
+     * El entrenador/nutriólogo se autoasigna a un cliente que aún no lo tiene.
+     */
+    public function autoasignar(Cliente $cliente): RedirectResponse
+    {
+        $user = auth()->user();
+        $cambios = [];
+
+        if ($user->hasPuesto(Puesto::ENTRENADOR) && $cliente->entrenador_id === null) {
+            $cambios['entrenador_id'] = $user->id;
+        }
+
+        if ($user->hasPuesto(Puesto::NUTRIOLOGO) && $cliente->nutriologo_id === null) {
+            $cambios['nutriologo_id'] = $user->id;
+        }
+
+        if ($cambios === []) {
+            return back()->with('status', 'No hay nada para autoasignar en este cliente.');
+        }
+
+        $cliente->update($cambios);
+
+        return back()->with('status', 'Te has asignado a este cliente correctamente.');
     }
 
     /**
@@ -160,6 +189,38 @@ class ClienteController extends Controller
         return redirect()
             ->route('clientes.index')
             ->with('status', 'Cliente eliminado correctamente.');
+    }
+
+    /**
+     * Listado base según el rol: los gestores ven a todos; el entrenador ve a
+     * sus alumnos y a los que no tienen entrenador; el nutriólogo, análogo con
+     * sus pacientes. Quien no tenga puesto aplicable no ve a nadie.
+     */
+    protected function baseQuery(User $user)
+    {
+        $query = Cliente::query();
+
+        if ($user->puedeGestionarClientes()) {
+            return $query;
+        }
+
+        $entrena = $user->hasPuesto(Puesto::ENTRENADOR);
+        $nutre = $user->hasPuesto(Puesto::NUTRIOLOGO);
+
+        if (! $entrena && ! $nutre) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function ($q) use ($user, $entrena, $nutre) {
+            if ($entrena) {
+                $q->orWhere('clientes.entrenador_id', $user->id)
+                    ->orWhereNull('clientes.entrenador_id');
+            }
+            if ($nutre) {
+                $q->orWhere('clientes.nutriologo_id', $user->id)
+                    ->orWhereNull('clientes.nutriologo_id');
+            }
+        });
     }
 
     /**

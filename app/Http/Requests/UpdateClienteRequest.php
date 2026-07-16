@@ -4,7 +4,6 @@ namespace App\Http\Requests;
 
 use App\Enums\ClienteEstado;
 use App\Enums\Genero;
-use App\Enums\UserRole;
 use App\Models\Puesto;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,7 +13,7 @@ class UpdateClienteRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasRole(UserRole::SuperAdmin, UserRole::Empleado) ?? false;
+        return $this->user()?->puedeGestionarClientes() ?? false;
     }
 
     /**

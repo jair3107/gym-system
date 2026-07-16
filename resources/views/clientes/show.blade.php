@@ -1,4 +1,13 @@
 <x-app-layout>
+    @php
+        $u = auth()->user();
+        $puedeGestionar = $u->puedeGestionarClientes();
+        $puedeAutoasignar = ! $puedeGestionar && (
+            ($u->hasPuesto(\App\Models\Puesto::ENTRENADOR) && is_null($cliente->entrenador_id))
+            || ($u->hasPuesto(\App\Models\Puesto::NUTRIOLOGO) && is_null($cliente->nutriologo_id))
+        );
+    @endphp
+
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <h2 class="font-brand font-semibold text-xl text-zinc-100 leading-tight tracking-wide">
@@ -6,9 +15,17 @@
             </h2>
             <div class="flex items-center gap-3">
                 <a href="{{ route('clientes.index') }}" class="text-sm text-zinc-400 hover:text-white">Volver</a>
-                <a href="{{ route('clientes.edit', $cliente) }}" class="btn-gold">
-                    Editar
-                </a>
+                @if ($puedeAutoasignar)
+                    <form method="POST" action="{{ route('clientes.autoasignar', $cliente) }}">
+                        @csrf
+                        <button type="submit" class="btn-gold">Asignármelo</button>
+                    </form>
+                @endif
+                @if ($puedeGestionar)
+                    <a href="{{ route('clientes.edit', $cliente) }}" class="btn-gold">
+                        Editar
+                    </a>
+                @endif
             </div>
         </div>
     </x-slot>

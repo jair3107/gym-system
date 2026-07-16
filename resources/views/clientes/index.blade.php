@@ -1,12 +1,25 @@
 <x-app-layout>
+    @php
+        $u = auth()->user();
+        $etiqueta = $u->etiquetaClientes();
+        $puedeGestionar = $u->puedeGestionarClientes();
+        // Cuando solo es nutriólogo, la columna de asignación muestra al nutriólogo.
+        $verComoNutri = ! $puedeGestionar
+            && $u->hasPuesto(\App\Models\Puesto::NUTRIOLOGO)
+            && ! $u->hasPuesto(\App\Models\Puesto::ENTRENADOR);
+        $colAsignacion = $verComoNutri ? 'Nutriólogo' : 'Entrenador';
+    @endphp
+
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <h2 class="font-brand font-semibold text-xl text-zinc-100 leading-tight tracking-wide">
-                Clientes
+                {{ $etiqueta }}
             </h2>
-            <a href="{{ route('clientes.create') }}" class="btn-gold">
-                + Nuevo cliente
-            </a>
+            @if ($puedeGestionar)
+                <a href="{{ route('clientes.create') }}" class="btn-gold">
+                    + Nuevo cliente
+                </a>
+            @endif
         </div>
     </x-slot>
 
@@ -48,13 +61,18 @@
                             <tr class="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                                 <th class="px-4 py-3">Cliente</th>
                                 <th class="px-4 py-3">Teléfono</th>
-                                <th class="px-4 py-3">Entrenador</th>
+                                <th class="px-4 py-3">{{ $colAsignacion }}</th>
                                 <th class="px-4 py-3">Estado</th>
                                 <th class="px-4 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-white/[0.04]">
                             @forelse ($clientes as $cliente)
+                                @php
+                                    $asignado = $verComoNutri ? $cliente->nutriologo : $cliente->entrenador;
+                                    $slotVacio = $verComoNutri ? is_null($cliente->nutriologo_id) : is_null($cliente->entrenador_id);
+                                    $puedeAutoasignar = ! $puedeGestionar && $slotVacio;
+                                @endphp
                                 <tr class="hover:bg-white/[0.02] transition">
                                     <td class="px-4 py-3">
                                         <div class="flex items-center gap-3">
@@ -68,7 +86,18 @@
                                         </div>
                                     </td>
                                     <td class="px-4 py-3 text-sm text-zinc-400">{{ $cliente->telefono ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-sm text-zinc-400">{{ $cliente->entrenador?->name ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-sm text-zinc-400">
+                                        @if ($asignado)
+                                            {{ $asignado->id === $u->id ? 'Yo' : $asignado->name }}
+                                        @elseif ($puedeAutoasignar)
+                                            <form method="POST" action="{{ route('clientes.autoasignar', $cliente) }}">
+                                                @csrf
+                                                <button type="submit" class="text-gold-400 hover:text-gold-300 underline">Asignármelo</button>
+                                            </form>
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
                                     <td class="px-4 py-3">
                                         <span class="badge {{ $cliente->estado->badgeClasses() }}">
                                             {{ $cliente->estado->label() }}
@@ -76,13 +105,15 @@
                                     </td>
                                     <td class="px-4 py-3 text-right text-sm space-x-3 whitespace-nowrap">
                                         <a href="{{ route('clientes.show', $cliente) }}" class="text-gold-400 hover:text-gold-300">Ver</a>
-                                        <a href="{{ route('clientes.edit', $cliente) }}" class="text-zinc-400 hover:text-white">Editar</a>
+                                        @if ($puedeGestionar)
+                                            <a href="{{ route('clientes.edit', $cliente) }}" class="text-zinc-400 hover:text-white">Editar</a>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
                                     <td colspan="5" class="px-4 py-8 text-center text-sm text-zinc-500">
-                                        No hay clientes que coincidan.
+                                        No hay {{ strtolower($etiqueta) }} que coincidan.
                                     </td>
                                 </tr>
                             @endforelse

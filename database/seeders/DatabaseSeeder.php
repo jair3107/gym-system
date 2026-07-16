@@ -18,10 +18,9 @@ class DatabaseSeeder extends Seeder
         // Catálogo de puestos base.
         $puestos = collect([
             ['nombre' => 'Administrador', 'slug' => Puesto::ADMIN, 'descripcion' => 'Puede gestionar empleados.'],
-            ['nombre' => 'Cajero', 'slug' => Puesto::CAJERO, 'descripcion' => 'Vende membresías, productos y servicios.'],
+            ['nombre' => 'Recepcionista / Cajero', 'slug' => Puesto::CAJERO, 'descripcion' => 'Atención en recepción y venta de membresías, productos y servicios. Da de alta clientes.'],
             ['nombre' => 'Nutriólogo', 'slug' => Puesto::NUTRIOLOGO, 'descripcion' => 'Gestiona dietas y pacientes.'],
             ['nombre' => 'Entrenador', 'slug' => Puesto::ENTRENADOR, 'descripcion' => 'Gestiona rutinas y alumnos.'],
-            ['nombre' => 'Recepcionista', 'slug' => 'recepcionista', 'descripcion' => 'Atención en recepción.'],
         ])->mapWithKeys(fn ($p) => [
             $p['slug'] => Puesto::firstOrCreate(['slug' => $p['slug']], $p),
         ]);
@@ -70,6 +69,69 @@ class DatabaseSeeder extends Seeder
 
         // Datos demo de nutrición: una dieta de Sonia y un seguimiento con progreso.
         $this->sembrarNutricionDemo($sonia, $clienteUser->cliente);
+
+        // Datos demo de entrenamiento: una rutina de Larry y un seguimiento con progreso.
+        $this->sembrarEntrenamientoDemo($larry, $clienteUser->cliente);
+    }
+
+    /**
+     * Crea una rutina y un seguimiento de ejemplo para explorar el módulo de entrenamiento.
+     */
+    protected function sembrarEntrenamientoDemo(User $entrenador, Cliente $alumno): void
+    {
+        if ($entrenador->rutinas()->exists()) {
+            return;
+        }
+
+        $rutina = $entrenador->rutinas()->create([
+            'nombre' => 'Fuerza full-body 3 días',
+            'objetivo' => 'Hipertrofia',
+            'nivel' => 'Intermedio',
+            'duracion_min' => 60,
+            'descripcion' => 'Rutina base de ejemplo.',
+            'activa' => true,
+            'plan' => [
+                'duraciones' => [
+                    'calentamiento' => '10 min',
+                    'principal' => '35 min',
+                    'cardio' => '15 min',
+                ],
+                'dias' => [
+                    'lunes' => [
+                        'calentamiento' => 'Movilidad articular y bici suave',
+                        'principal' => 'Sentadilla 4×8, Press banca 4×8, Remo 4×10',
+                        'cardio' => 'Cinta 15 min ritmo moderado',
+                    ],
+                    'miercoles' => [
+                        'calentamiento' => 'Movilidad de cadera y hombro',
+                        'principal' => 'Peso muerto 4×6, Press militar 4×8, Dominadas 4×máx',
+                    ],
+                    'viernes' => [
+                        'principal' => 'Prensa 4×12, Curl bíceps 3×12, Extensión tríceps 3×12',
+                        'cardio' => 'Elíptica 15 min',
+                    ],
+                ],
+            ],
+        ]);
+
+        $seguimiento = \App\Models\SeguimientoEntrenamiento::create([
+            'entrenador_id' => $entrenador->id,
+            'cliente_id' => $alumno->id,
+            'rutina_id' => $rutina->id,
+            'fecha_inicio' => now()->subWeeks(4),
+            'peso_inicial' => 84.0,
+            'peso_meta' => 80.0,
+            'masa_inicial' => 34.0,
+            'masa_meta' => 38.0,
+            'estado' => \App\Enums\SeguimientoEstado::Activo,
+            'notas' => 'Seguimiento de ejemplo.',
+        ]);
+
+        $seguimiento->mediciones()->createMany([
+            ['fecha' => now()->subWeeks(3), 'peso' => 83.4, 'masa_muscular' => 34.6, 'notas' => 'Buena técnica'],
+            ['fecha' => now()->subWeeks(2), 'peso' => 82.8, 'masa_muscular' => 35.3],
+            ['fecha' => now()->subWeek(), 'peso' => 82.1, 'masa_muscular' => 36.0, 'notas' => 'Subiendo cargas'],
+        ]);
     }
 
     /**
