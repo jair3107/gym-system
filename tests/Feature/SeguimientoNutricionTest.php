@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ClienteEstado;
 use App\Enums\SeguimientoEstado;
 use App\Enums\UserRole;
 use App\Models\Cliente;
@@ -194,5 +195,45 @@ class SeguimientoNutricionTest extends TestCase
         $this->actingAs($this->superadmin())
             ->get(route('seguimientos-nutricion.index'))
             ->assertOk();
+    }
+
+    public function test_el_nutriologo_puede_asignar_una_dieta_desde_la_ficha(): void
+    {
+        $nutri = $this->nutriologo();
+        $paciente = $this->pacienteDe($nutri);
+        $dieta = $this->dietaDe($nutri);
+
+        $this->actingAs($nutri)
+            ->post(route('seguimientos-nutricion.asignar', $paciente), ['dieta_id' => $dieta->id])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('seguimientos_nutricion', [
+            'cliente_id' => $paciente->id,
+            'dieta_id' => $dieta->id,
+            'nutriologo_id' => $nutri->id,
+        ]);
+    }
+
+    public function test_no_puede_asignar_una_dieta_a_un_paciente_ajeno(): void
+    {
+        $nutri = $this->nutriologo();
+        $otro = $this->nutriologo();
+        $ajeno = $this->pacienteDe($otro);
+        $dieta = $this->dietaDe($nutri);
+
+        $this->actingAs($nutri)
+            ->post(route('seguimientos-nutricion.asignar', $ajeno), ['dieta_id' => $dieta->id])
+            ->assertForbidden();
+    }
+
+    public function test_la_ficha_del_paciente_muestra_el_panel_de_nutricion(): void
+    {
+        $nutri = $this->nutriologo();
+        $paciente = Cliente::factory()->create(['nutriologo_id' => $nutri->id, 'estado' => ClienteEstado::Activo]);
+
+        $this->actingAs($nutri)
+            ->get(route('clientes.show', $paciente))
+            ->assertOk()
+            ->assertSee('Asignar una de mis dietas');
     }
 }

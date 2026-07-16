@@ -34,13 +34,16 @@ class StoreRutinaRequest extends FormRequest
             'descripcion' => ['nullable', 'string'],
             'activa' => ['boolean'],
 
-            // Plan semanal (estructura libre validada por partes).
+            // Plan semanal: por día un enfoque y una lista de ejercicios.
             'plan' => ['nullable', 'array'],
-            'plan.duraciones' => ['nullable', 'array'],
-            'plan.duraciones.*' => ['nullable', 'string', 'max:100'],
             'plan.dias' => ['nullable', 'array'],
             'plan.dias.*' => ['nullable', 'array'],
-            'plan.dias.*.*' => ['nullable', 'string', 'max:500'],
+            'plan.dias.*.enfoque' => ['nullable', 'string', 'max:255'],
+            'plan.dias.*.ejercicios' => ['nullable', 'array'],
+            'plan.dias.*.ejercicios.*' => ['nullable', 'array'],
+            'plan.dias.*.ejercicios.*.nombre' => ['nullable', 'string', 'max:255'],
+            'plan.dias.*.ejercicios.*.series' => ['nullable', 'string', 'max:100'],
+            'plan.dias.*.ejercicios.*.apuntes' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

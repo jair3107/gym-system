@@ -35,11 +35,14 @@ class UpdateRutinaRequest extends FormRequest
             'activa' => ['boolean'],
 
             'plan' => ['nullable', 'array'],
-            'plan.duraciones' => ['nullable', 'array'],
-            'plan.duraciones.*' => ['nullable', 'string', 'max:100'],
             'plan.dias' => ['nullable', 'array'],
             'plan.dias.*' => ['nullable', 'array'],
-            'plan.dias.*.*' => ['nullable', 'string', 'max:500'],
+            'plan.dias.*.enfoque' => ['nullable', 'string', 'max:255'],
+            'plan.dias.*.ejercicios' => ['nullable', 'array'],
+            'plan.dias.*.ejercicios.*' => ['nullable', 'array'],
+            'plan.dias.*.ejercicios.*.nombre' => ['nullable', 'string', 'max:255'],
+            'plan.dias.*.ejercicios.*.series' => ['nullable', 'string', 'max:100'],
+            'plan.dias.*.ejercicios.*.apuntes' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

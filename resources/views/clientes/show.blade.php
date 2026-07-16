@@ -116,6 +116,104 @@
                     </div>
                 </dl>
             </div>
+
+            {{-- Panel de entrenamiento (para el entrenador del alumno) --}}
+            @if (!empty($esEntrenadorDelCliente))
+                <div class="card p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="section-title">Entrenamiento</h3>
+                        <a href="{{ route('rutinas.index') }}" class="text-sm text-zinc-400 hover:text-white">Mis rutinas</a>
+                    </div>
+
+                    @if ($cliente->estado === \App\Enums\ClienteEstado::Activo)
+                        <form method="POST" action="{{ route('seguimientos-entrenamiento.asignar', $cliente) }}"
+                              class="flex flex-wrap gap-3 items-end mb-6 pb-6 border-b border-white/[0.06]">
+                            @csrf
+                            <div class="flex-1 min-w-56">
+                                <x-input-label for="rutina_id" value="Asignar una de mis rutinas" />
+                                <select id="rutina_id" name="rutina_id" class="select mt-1 block w-full" required>
+                                    <option value="">— Selecciona una rutina —</option>
+                                    @foreach ($misRutinas as $rutina)
+                                        <option value="{{ $rutina->id }}">{{ $rutina->nombre }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('rutina_id')" class="mt-2" />
+                                @if ($misRutinas->isEmpty())
+                                    <p class="mt-1 text-xs text-zinc-500">No tienes rutinas activas. Crea una en la sección Rutinas.</p>
+                                @endif
+                            </div>
+                            <x-primary-button>Asignar y dar seguimiento</x-primary-button>
+                        </form>
+                    @else
+                        <p class="text-sm text-zinc-500 mb-4">Solo puedes asignar rutinas a alumnos activos.</p>
+                    @endif
+
+                    <p class="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Seguimientos</p>
+                    @forelse ($seguimientosEntrenamiento as $seg)
+                        <div class="flex items-center justify-between py-2 border-b border-white/[0.04] last:border-0">
+                            <div>
+                                <div class="text-sm text-zinc-200">{{ $seg->rutina?->nombre ?? '— sin rutina —' }}</div>
+                                <div class="text-xs text-zinc-500">Desde {{ $seg->fecha_inicio->format('d/m/Y') }}</div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="badge {{ $seg->estado->badgeClasses() }}">{{ $seg->estado->label() }}</span>
+                                <a href="{{ route('seguimientos-entrenamiento.show', $seg) }}" class="text-sm text-gold-400 hover:text-gold-300">Ver</a>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-sm text-zinc-500">Aún no hay seguimientos de entrenamiento para este alumno.</p>
+                    @endforelse
+                </div>
+            @endif
+
+            {{-- Panel de nutrición (para el nutriólogo del paciente) --}}
+            @if (!empty($esNutriologoDelCliente))
+                <div class="card p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="section-title">Nutrición</h3>
+                        <a href="{{ route('dietas.index') }}" class="text-sm text-zinc-400 hover:text-white">Mis dietas</a>
+                    </div>
+
+                    @if ($cliente->estado === \App\Enums\ClienteEstado::Activo)
+                        <form method="POST" action="{{ route('seguimientos-nutricion.asignar', $cliente) }}"
+                              class="flex flex-wrap gap-3 items-end mb-6 pb-6 border-b border-white/[0.06]">
+                            @csrf
+                            <div class="flex-1 min-w-56">
+                                <x-input-label for="dieta_id" value="Asignar una de mis dietas" />
+                                <select id="dieta_id" name="dieta_id" class="select mt-1 block w-full" required>
+                                    <option value="">— Selecciona una dieta —</option>
+                                    @foreach ($misDietas as $dieta)
+                                        <option value="{{ $dieta->id }}">{{ $dieta->nombre }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('dieta_id')" class="mt-2" />
+                                @if ($misDietas->isEmpty())
+                                    <p class="mt-1 text-xs text-zinc-500">No tienes dietas activas. Crea una en la sección Dietas.</p>
+                                @endif
+                            </div>
+                            <x-primary-button>Asignar y dar seguimiento</x-primary-button>
+                        </form>
+                    @else
+                        <p class="text-sm text-zinc-500 mb-4">Solo puedes asignar dietas a pacientes activos.</p>
+                    @endif
+
+                    <p class="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Seguimientos</p>
+                    @forelse ($seguimientosNutricion as $seg)
+                        <div class="flex items-center justify-between py-2 border-b border-white/[0.04] last:border-0">
+                            <div>
+                                <div class="text-sm text-zinc-200">{{ $seg->dieta?->nombre ?? '— sin dieta —' }}</div>
+                                <div class="text-xs text-zinc-500">Desde {{ $seg->fecha_inicio->format('d/m/Y') }}</div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="badge {{ $seg->estado->badgeClasses() }}">{{ $seg->estado->label() }}</span>
+                                <a href="{{ route('seguimientos-nutricion.show', $seg) }}" class="text-sm text-gold-400 hover:text-gold-300">Ver</a>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-sm text-zinc-500">Aún no hay seguimientos de nutrición para este paciente.</p>
+                    @endforelse
+                </div>
+            @endif
         </div>
     </div>
 </x-app-layout>

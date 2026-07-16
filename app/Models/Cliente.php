@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Cliente extends Model
 {
@@ -58,6 +59,22 @@ class Cliente extends Model
     public function nutriologo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'nutriologo_id');
+    }
+
+    /**
+     * Seguimientos de entrenamiento de este cliente (como alumno).
+     */
+    public function seguimientosEntrenamiento(): HasMany
+    {
+        return $this->hasMany(SeguimientoEntrenamiento::class);
+    }
+
+    /**
+     * Seguimientos de nutrición de este cliente (como paciente).
+     */
+    public function seguimientosNutricion(): HasMany
+    {
+        return $this->hasMany(SeguimientoNutricion::class);
     }
 
     /**

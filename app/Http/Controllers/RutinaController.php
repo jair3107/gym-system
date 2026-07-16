@@ -35,7 +35,7 @@ class RutinaController extends Controller
      */
     public function create(): View
     {
-        return view('rutinas.create');
+        return view('rutinas.create', ['planInicial' => $this->planInicial(null)]);
     }
 
     /**
@@ -78,7 +78,10 @@ class RutinaController extends Controller
     {
         $this->autorizarAcceso($rutina);
 
-        return view('rutinas.edit', ['rutina' => $rutina]);
+        return view('rutinas.edit', [
+            'rutina' => $rutina,
+            'planInicial' => $this->planInicial($rutina),
+        ]);
     }
 
     /**
@@ -119,6 +122,39 @@ class RutinaController extends Controller
     }
 
     /**
+     * Estado inicial del plan para el formulario (Alpine): un elemento por día
+     * con su enfoque y lista de ejercicios, tomando old() o la rutina existente.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function planInicial(?Rutina $rutina): array
+    {
+        $plan = [];
+
+        foreach (Rutina::DIAS as $slug => $label) {
+            $ejerciciosOld = old("plan.dias.$slug.ejercicios", $rutina?->ejercicios($slug) ?? []);
+
+            $lista = [];
+            foreach ((array) $ejerciciosOld as $ejercicio) {
+                $lista[] = [
+                    'nombre' => $ejercicio['nombre'] ?? '',
+                    'series' => $ejercicio['series'] ?? '',
+                    'apuntes' => $ejercicio['apuntes'] ?? '',
+                ];
+            }
+
+            $plan[] = [
+                'slug' => $slug,
+                'label' => $label,
+                'enfoque' => old("plan.dias.$slug.enfoque", $rutina?->enfoque($slug) ?? ''),
+                'ejercicios' => $lista,
+            ];
+        }
+
+        return $plan;
+    }
+
+    /**
      * Base del listado según el rol: el dueño ve todo, el entrenador lo suyo.
      */
     protected function baseQuery()
@@ -143,36 +179,38 @@ class RutinaController extends Controller
     }
 
     /**
-     * Reconstruye el plan semanal usando solo días y bloques conocidos,
-     * descartando celdas vacías.
+     * Reconstruye el plan semanal: por cada día conserva su enfoque muscular y
+     * la lista de ejercicios (con nombre, series y apuntes), descartando filas
+     * sin nombre y días vacíos.
      *
      * @param  array<string, mixed>  $plan
-     * @return array{duraciones: array<string, string>, dias: array<string, array<string, string>>}
+     * @return array{dias: array<string, array{enfoque: string, ejercicios: array<int, array<string, string>>}>}
      */
     protected function normalizarPlan(array $plan): array
     {
-        $duraciones = [];
-        foreach (array_keys(Rutina::BLOQUES) as $bloque) {
-            $valor = trim((string) ($plan['duraciones'][$bloque] ?? ''));
-            if ($valor !== '') {
-                $duraciones[$bloque] = $valor;
-            }
-        }
-
         $dias = [];
+
         foreach (array_keys(Rutina::DIAS) as $dia) {
-            $celdas = [];
-            foreach (array_keys(Rutina::BLOQUES) as $bloque) {
-                $valor = trim((string) ($plan['dias'][$dia][$bloque] ?? ''));
-                if ($valor !== '') {
-                    $celdas[$bloque] = $valor;
+            $enfoque = trim((string) ($plan['dias'][$dia]['enfoque'] ?? ''));
+
+            $ejercicios = [];
+            foreach ((array) ($plan['dias'][$dia]['ejercicios'] ?? []) as $ejercicio) {
+                $nombre = trim((string) ($ejercicio['nombre'] ?? ''));
+                if ($nombre === '') {
+                    continue;
                 }
+                $ejercicios[] = [
+                    'nombre' => $nombre,
+                    'series' => trim((string) ($ejercicio['series'] ?? '')),
+                    'apuntes' => trim((string) ($ejercicio['apuntes'] ?? '')),
+                ];
             }
-            if ($celdas !== []) {
-                $dias[$dia] = $celdas;
+
+            if ($enfoque !== '' || $ejercicios !== []) {
+                $dias[$dia] = ['enfoque' => $enfoque, 'ejercicios' => $ejercicios];
             }
         }
 
-        return ['duraciones' => $duraciones, 'dias' => $dias];
+        return ['dias' => $dias];
     }
 }

@@ -53,11 +53,13 @@ class RutinaTest extends TestCase
             'duracion_min' => 60,
             'activa' => '1',
             'plan' => [
-                'duraciones' => ['calentamiento' => '10 min', 'principal' => '30 min'],
                 'dias' => [
                     'lunes' => [
-                        'calentamiento' => 'Movilidad articular',
-                        'principal' => 'Sentadilla 4×8',
+                        'enfoque' => 'Pecho - Tríceps',
+                        'ejercicios' => [
+                            ['nombre' => 'Press banca', 'series' => '10, 8, 8, 6', 'apuntes' => 'Controlar bajada'],
+                            ['nombre' => '', 'series' => '', 'apuntes' => ''], // fila vacía: se descarta
+                        ],
                     ],
                 ],
             ],
@@ -66,9 +68,13 @@ class RutinaTest extends TestCase
         $rutina = Rutina::where('nombre', 'Fuerza full-body')->first();
         $this->assertNotNull($rutina);
         $this->assertSame($entrenador->id, $rutina->entrenador_id);
-        $this->assertSame('10 min', $rutina->duracion('calentamiento'));
-        $this->assertSame('Movilidad articular', $rutina->contenido('lunes', 'calentamiento'));
-        $this->assertSame('Sentadilla 4×8', $rutina->contenido('lunes', 'principal'));
+        $this->assertSame('Pecho - Tríceps', $rutina->enfoque('lunes'));
+
+        $ejercicios = $rutina->ejercicios('lunes');
+        $this->assertCount(1, $ejercicios);
+        $this->assertSame('Press banca', $ejercicios[0]['nombre']);
+        $this->assertSame('10, 8, 8, 6', $ejercicios[0]['series']);
+        $this->assertSame('Controlar bajada', $ejercicios[0]['apuntes']);
     }
 
     public function test_el_nombre_es_obligatorio(): void
@@ -121,13 +127,17 @@ class RutinaTest extends TestCase
         $this->actingAs($entrenador)->put(route('rutinas.update', $rutina), [
             'nombre' => 'Rutina actualizada',
             'activa' => '0',
-            'plan' => ['dias' => ['martes' => ['cardio' => 'Cinta 20 min']]],
+            'plan' => ['dias' => ['martes' => [
+                'enfoque' => 'Piernas',
+                'ejercicios' => [['nombre' => 'Sentadillas', 'series' => '3 x 8', 'apuntes' => '']],
+            ]]],
         ])->assertRedirect(route('rutinas.show', $rutina));
 
         $rutina->refresh();
         $this->assertSame('Rutina actualizada', $rutina->nombre);
         $this->assertFalse($rutina->activa);
-        $this->assertSame('Cinta 20 min', $rutina->contenido('martes', 'cardio'));
+        $this->assertSame('Piernas', $rutina->enfoque('martes'));
+        $this->assertSame('Sentadillas', $rutina->ejercicios('martes')[0]['nombre']);
     }
 
     public function test_el_entrenador_puede_eliminar_su_rutina(): void

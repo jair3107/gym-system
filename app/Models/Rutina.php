@@ -26,19 +26,6 @@ class Rutina extends Model
         'domingo' => 'Domingo',
     ];
 
-    /**
-     * Bloques de la sesión (filas de la tabla), en orden.
-     *
-     * @var array<string, string>
-     */
-    public const BLOQUES = [
-        'calentamiento' => 'Calentamiento',
-        'principal' => 'Ejercicio principal',
-        'accesorios' => 'Accesorios',
-        'cardio' => 'Cardio',
-        'enfriamiento' => 'Enfriamiento',
-    ];
-
     protected $fillable = [
         'entrenador_id',
         'nombre',
@@ -64,19 +51,29 @@ class Rutina extends Model
     }
 
     /**
-     * Duración configurada para un bloque de la sesión (fila).
+     * Enfoque muscular del día (p. ej. "Pecho - Tríceps").
      */
-    public function duracion(string $bloque): ?string
+    public function enfoque(string $dia): ?string
     {
-        return $this->plan['duraciones'][$bloque] ?? null;
+        return $this->plan['dias'][$dia]['enfoque'] ?? null;
     }
 
     /**
-     * Contenido (ejercicios) para un día + bloque (celda).
+     * Ejercicios de un día: lista de ['nombre', 'series', 'apuntes'].
+     *
+     * @return array<int, array<string, string>>
      */
-    public function contenido(string $dia, string $bloque): ?string
+    public function ejercicios(string $dia): array
     {
-        return $this->plan['dias'][$dia][$bloque] ?? null;
+        return $this->plan['dias'][$dia]['ejercicios'] ?? [];
+    }
+
+    /**
+     * ¿El día tiene contenido (enfoque o ejercicios)?
+     */
+    public function tieneDia(string $dia): bool
+    {
+        return filled($this->enfoque($dia)) || $this->ejercicios($dia) !== [];
     }
 
     /**

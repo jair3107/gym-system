@@ -8,8 +8,10 @@ use App\Http\Requests\UpdateSeguimientoEntrenamientoRequest;
 use App\Models\Cliente;
 use App\Models\Rutina;
 use App\Models\SeguimientoEntrenamiento;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class SeguimientoEntrenamientoController extends Controller
@@ -132,6 +134,37 @@ class SeguimientoEntrenamientoController extends Controller
         return redirect()
             ->route('seguimientos-entrenamiento.index')
             ->with('status', 'Seguimiento eliminado correctamente.');
+    }
+
+    /**
+     * Asignar una de mis rutinas a un alumno desde su ficha: crea un seguimiento
+     * activo con la rutina elegida y lleva a su pantalla de progreso.
+     */
+    public function asignarRutina(Request $request, Cliente $cliente): RedirectResponse
+    {
+        $user = $request->user();
+
+        if (! $user->isSuperAdmin() && $cliente->entrenador_id !== $user->id) {
+            abort(403, 'Este alumno no está asignado a ti.');
+        }
+
+        $data = $request->validate([
+            'rutina_id' => ['required', Rule::exists('rutinas', 'id')->where(function (Builder $q) use ($user) {
+                return $user->isSuperAdmin() ? $q : $q->where('entrenador_id', $user->id);
+            })],
+        ], [], ['rutina_id' => 'rutina']);
+
+        $seguimiento = SeguimientoEntrenamiento::create([
+            'entrenador_id' => $cliente->entrenador_id ?? $user->id,
+            'cliente_id' => $cliente->id,
+            'rutina_id' => $data['rutina_id'],
+            'fecha_inicio' => now()->format('Y-m-d'),
+            'estado' => SeguimientoEstado::Activo,
+        ]);
+
+        return redirect()
+            ->route('seguimientos-entrenamiento.show', $seguimiento)
+            ->with('status', 'Rutina asignada. Ya puedes registrar el progreso.');
     }
 
     /**

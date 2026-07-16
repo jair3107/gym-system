@@ -8,8 +8,10 @@ use App\Http\Requests\UpdateSeguimientoNutricionRequest;
 use App\Models\Cliente;
 use App\Models\Dieta;
 use App\Models\SeguimientoNutricion;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class SeguimientoNutricionController extends Controller
@@ -128,6 +130,37 @@ class SeguimientoNutricionController extends Controller
         return redirect()
             ->route('seguimientos-nutricion.index')
             ->with('status', 'Seguimiento eliminado correctamente.');
+    }
+
+    /**
+     * Asignar una de mis dietas a un paciente desde su ficha: crea un seguimiento
+     * activo con la dieta elegida y lleva a su pantalla de progreso.
+     */
+    public function asignarDieta(Request $request, Cliente $cliente): RedirectResponse
+    {
+        $user = $request->user();
+
+        if (! $user->isSuperAdmin() && $cliente->nutriologo_id !== $user->id) {
+            abort(403, 'Este paciente no está asignado a ti.');
+        }
+
+        $data = $request->validate([
+            'dieta_id' => ['required', Rule::exists('dietas', 'id')->where(function (Builder $q) use ($user) {
+                return $user->isSuperAdmin() ? $q : $q->where('nutriologo_id', $user->id);
+            })],
+        ], [], ['dieta_id' => 'dieta']);
+
+        $seguimiento = SeguimientoNutricion::create([
+            'nutriologo_id' => $cliente->nutriologo_id ?? $user->id,
+            'cliente_id' => $cliente->id,
+            'dieta_id' => $data['dieta_id'],
+            'fecha_inicio' => now()->format('Y-m-d'),
+            'estado' => SeguimientoEstado::Activo,
+        ]);
+
+        return redirect()
+            ->route('seguimientos-nutricion.show', $seguimiento)
+            ->with('status', 'Dieta asignada. Ya puedes registrar el progreso.');
     }
 
     /**

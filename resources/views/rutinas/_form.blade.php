@@ -59,49 +59,80 @@
         </div>
     </div>
 
-    {{-- Plan semanal --}}
-    <div>
+    {{-- Plan semanal: por día, un enfoque muscular y su lista de ejercicios --}}
+    @php($planInicial = $planInicial ?? [])
+
+    <div x-data="{
+            dias: @js($planInicial),
+            siguienteId: 0,
+            init() { this.dias.forEach(d => d.ejercicios.forEach(e => { e._id = this.siguienteId++ })) }
+         }">
         <h3 class="section-title mb-2">Plan semanal</h3>
         <p class="text-xs text-zinc-500 mb-4">
-            Escribe los ejercicios de cada bloque por día (p. ej. <span class="text-zinc-400">Sentadilla 4×8, Press banca 4×8</span>).
-            La duración se define una vez por bloque (p. ej. <span class="text-zinc-400">10 min</span>).
+            Para cada día de entrenamiento escribe el enfoque muscular y agrega sus ejercicios
+            (nombre, series y apuntes). Deja vacíos los días de descanso.
         </p>
 
-        <div class="overflow-x-auto rounded-lg border border-white/[0.06]">
-            <table class="min-w-full border-separate border-spacing-0 text-sm">
-                <thead>
-                    <tr>
-                        <th class="sticky left-0 z-10 bg-ink-800 px-3 py-2 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider border-b border-white/10 min-w-48">
-                            Bloque / Duración
-                        </th>
-                        @foreach (\App\Models\Rutina::DIAS as $dia => $diaLabel)
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gold-400 uppercase tracking-wider border-b border-white/10 min-w-44">
-                                {{ $diaLabel }}
-                            </th>
-                        @endforeach
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (\App\Models\Rutina::BLOQUES as $bloque => $bloqueLabel)
-                        <tr class="align-top">
-                            <th class="sticky left-0 z-10 bg-ink-800 px-3 py-2 text-left border-b border-white/[0.06]">
-                                <div class="font-medium text-zinc-200">{{ $bloqueLabel }}</div>
-                                <input type="text" name="plan[duraciones][{{ $bloque }}]"
-                                       value="{{ old("plan.duraciones.$bloque", $rutina?->duracion($bloque)) }}"
-                                       placeholder="Duración"
-                                       class="input mt-1 block w-full !py-1 text-xs">
-                            </th>
-                            @foreach (\App\Models\Rutina::DIAS as $dia => $diaLabel)
-                                <td class="px-2 py-2 border-b border-white/[0.06]">
-                                    <textarea name="plan[dias][{{ $dia }}][{{ $bloque }}]" rows="2"
-                                              placeholder="—"
-                                              class="textarea block w-full !py-1 text-xs">{{ old("plan.dias.$dia.$bloque", $rutina?->contenido($dia, $bloque)) }}</textarea>
-                                </td>
-                            @endforeach
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+        <div class="space-y-4">
+            <template x-for="dia in dias" :key="dia.slug">
+                <div class="rounded-lg border border-white/[0.06] overflow-hidden">
+                    <div class="flex flex-wrap items-center gap-3 bg-ink-800 px-4 py-3 border-b border-white/10">
+                        <span class="font-brand font-semibold text-gold-400 uppercase tracking-wider min-w-24" x-text="dia.label"></span>
+                        <input type="text"
+                               :name="`plan[dias][${dia.slug}][enfoque]`"
+                               x-model="dia.enfoque"
+                               placeholder="Enfoque (ej. Pecho - Tríceps)"
+                               class="input !py-1 text-sm flex-1 min-w-48">
+                    </div>
+
+                    <table class="min-w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                                <th class="px-4 py-2">Ejercicio</th>
+                                <th class="px-4 py-2 w-32">Series</th>
+                                <th class="px-4 py-2 w-56">Apuntes</th>
+                                <th class="px-2 py-2 w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(ej, i) in dia.ejercicios" :key="ej._id">
+                                <tr class="border-t border-white/[0.04]">
+                                    <td class="px-3 py-1.5">
+                                        <input type="text" :name="`plan[dias][${dia.slug}][ejercicios][${i}][nombre]`"
+                                               x-model="ej.nombre" placeholder="Ej. Press banca"
+                                               class="input !py-1 text-sm block w-full">
+                                    </td>
+                                    <td class="px-3 py-1.5">
+                                        <input type="text" :name="`plan[dias][${dia.slug}][ejercicios][${i}][series]`"
+                                               x-model="ej.series" placeholder="10, 8, 8, 6"
+                                               class="input !py-1 text-sm block w-full">
+                                    </td>
+                                    <td class="px-3 py-1.5">
+                                        <input type="text" :name="`plan[dias][${dia.slug}][ejercicios][${i}][apuntes]`"
+                                               x-model="ej.apuntes" placeholder="Opcional"
+                                               class="input !py-1 text-sm block w-full">
+                                    </td>
+                                    <td class="px-2 py-1.5 text-center">
+                                        <button type="button" @click="dia.ejercicios.splice(i, 1)"
+                                                class="text-zinc-500 hover:text-red-400" title="Quitar">✕</button>
+                                    </td>
+                                </tr>
+                            </template>
+                            <tr x-show="dia.ejercicios.length === 0">
+                                <td colspan="4" class="px-4 py-2 text-xs text-zinc-500">Sin ejercicios. Agrega el primero abajo.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="px-4 py-2 border-t border-white/[0.06]">
+                        <button type="button"
+                                @click="dia.ejercicios.push({ _id: siguienteId++, nombre: '', series: '', apuntes: '' })"
+                                class="text-sm text-gold-400 hover:text-gold-300">
+                            + Agregar ejercicio
+                        </button>
+                    </div>
+                </div>
+            </template>
         </div>
     </div>
 </div>

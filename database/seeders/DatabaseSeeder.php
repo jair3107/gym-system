@@ -84,31 +84,51 @@ class DatabaseSeeder extends Seeder
         }
 
         $rutina = $entrenador->rutinas()->create([
-            'nombre' => 'Fuerza full-body 3 días',
+            'nombre' => 'Hipertrofia 4 días (Weider)',
             'objetivo' => 'Hipertrofia',
             'nivel' => 'Intermedio',
-            'duracion_min' => 60,
-            'descripcion' => 'Rutina base de ejemplo.',
+            'duracion_min' => 75,
+            'descripcion' => 'Rutina dividida por grupo muscular.',
             'activa' => true,
             'plan' => [
-                'duraciones' => [
-                    'calentamiento' => '10 min',
-                    'principal' => '35 min',
-                    'cardio' => '15 min',
-                ],
                 'dias' => [
                     'lunes' => [
-                        'calentamiento' => 'Movilidad articular y bici suave',
-                        'principal' => 'Sentadilla 4×8, Press banca 4×8, Remo 4×10',
-                        'cardio' => 'Cinta 15 min ritmo moderado',
+                        'enfoque' => 'Pecho - Tríceps',
+                        'ejercicios' => [
+                            ['nombre' => 'Press banca', 'series' => '10, 8, 8, 6', 'apuntes' => ''],
+                            ['nombre' => 'Press banca inclinado', 'series' => '8, 8, 6', 'apuntes' => ''],
+                            ['nombre' => 'Aperturas con mancuernas', 'series' => '2 x 8', 'apuntes' => ''],
+                            ['nombre' => 'Extensión tríceps en polea', 'series' => '10, 8, 8, 6', 'apuntes' => ''],
+                            ['nombre' => 'Fondos', 'series' => '10, 10, 8', 'apuntes' => ''],
+                        ],
                     ],
-                    'miercoles' => [
-                        'calentamiento' => 'Movilidad de cadera y hombro',
-                        'principal' => 'Peso muerto 4×6, Press militar 4×8, Dominadas 4×máx',
+                    'martes' => [
+                        'enfoque' => 'Espalda - Bíceps',
+                        'ejercicios' => [
+                            ['nombre' => 'Dominadas', 'series' => '3 x 8', 'apuntes' => ''],
+                            ['nombre' => 'Remo horizontal con mancuerna', 'series' => '3 x 8', 'apuntes' => ''],
+                            ['nombre' => 'Polea al pecho', 'series' => '10, 10, 8', 'apuntes' => ''],
+                            ['nombre' => 'Curl bíceps con barra recta', 'series' => '8, 8, 6', 'apuntes' => ''],
+                            ['nombre' => 'Curl concentrado', 'series' => '2 x 10', 'apuntes' => ''],
+                        ],
+                    ],
+                    'jueves' => [
+                        'enfoque' => 'Hombros - Antebrazos',
+                        'ejercicios' => [
+                            ['nombre' => 'Press frontal con barra', 'series' => '3 x 10', 'apuntes' => ''],
+                            ['nombre' => 'Press Arnold', 'series' => '4 x 10', 'apuntes' => ''],
+                            ['nombre' => 'Elevaciones laterales', 'series' => '2 x 10', 'apuntes' => ''],
+                            ['nombre' => 'Curl antebrazo con barra', 'series' => '4 x 10', 'apuntes' => ''],
+                        ],
                     ],
                     'viernes' => [
-                        'principal' => 'Prensa 4×12, Curl bíceps 3×12, Extensión tríceps 3×12',
-                        'cardio' => 'Elíptica 15 min',
+                        'enfoque' => 'Piernas',
+                        'ejercicios' => [
+                            ['nombre' => 'Sentadillas', 'series' => '3 x 8', 'apuntes' => ''],
+                            ['nombre' => 'Extensiones de cuádriceps', 'series' => '3 x 8', 'apuntes' => ''],
+                            ['nombre' => 'Curl femoral en máquina', 'series' => '3 x 8', 'apuntes' => ''],
+                            ['nombre' => 'Gemelos de pie', 'series' => '3 x 10', 'apuntes' => ''],
+                        ],
                     ],
                 ],
             ],

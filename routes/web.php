@@ -70,6 +70,10 @@ Route::middleware(['auth', 'gestiona.nutricion'])->group(function () {
         ->name('seguimientos-nutricion.mediciones.store');
     Route::delete('mediciones-nutricion/{medicion}', [MedicionNutricionController::class, 'destroy'])
         ->name('mediciones-nutricion.destroy');
+
+    // Asignar una dieta a un paciente desde su ficha (crea el seguimiento).
+    Route::post('clientes/{cliente}/asignar-dieta', [SeguimientoNutricionController::class, 'asignarDieta'])
+        ->name('seguimientos-nutricion.asignar');
 });
 
 // Entrenamiento: rutinas y seguimientos (dueño o empleado con puesto entrenador)
@@ -84,6 +88,10 @@ Route::middleware(['auth', 'gestiona.entrenamiento'])->group(function () {
         ->name('seguimientos-entrenamiento.mediciones.store');
     Route::delete('mediciones-entrenamiento/{medicion}', [MedicionEntrenamientoController::class, 'destroy'])
         ->name('mediciones-entrenamiento.destroy');
+
+    // Asignar una rutina a un alumno desde su ficha (crea el seguimiento).
+    Route::post('clientes/{cliente}/asignar-rutina', [SeguimientoEntrenamientoController::class, 'asignarRutina'])
+        ->name('seguimientos-entrenamiento.asignar');
 });
 
 // Cliente routes

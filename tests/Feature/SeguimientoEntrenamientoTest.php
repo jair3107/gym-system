@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ClienteEstado;
 use App\Enums\SeguimientoEstado;
 use App\Enums\UserRole;
 use App\Models\Cliente;
@@ -200,5 +201,57 @@ class SeguimientoEntrenamientoTest extends TestCase
         $this->actingAs($this->superadmin())
             ->get(route('seguimientos-entrenamiento.index'))
             ->assertOk();
+    }
+
+    public function test_el_entrenador_puede_asignar_una_rutina_desde_la_ficha(): void
+    {
+        $entre = $this->entrenador();
+        $alumno = $this->alumnoDe($entre);
+        $rutina = $this->rutinaDe($entre);
+
+        $this->actingAs($entre)
+            ->post(route('seguimientos-entrenamiento.asignar', $alumno), ['rutina_id' => $rutina->id])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('seguimientos_entrenamiento', [
+            'cliente_id' => $alumno->id,
+            'rutina_id' => $rutina->id,
+            'entrenador_id' => $entre->id,
+        ]);
+    }
+
+    public function test_no_puede_asignar_una_rutina_a_un_alumno_ajeno(): void
+    {
+        $entre = $this->entrenador();
+        $otro = $this->entrenador();
+        $ajeno = $this->alumnoDe($otro);
+        $rutina = $this->rutinaDe($entre);
+
+        $this->actingAs($entre)
+            ->post(route('seguimientos-entrenamiento.asignar', $ajeno), ['rutina_id' => $rutina->id])
+            ->assertForbidden();
+    }
+
+    public function test_no_puede_asignar_una_rutina_ajena(): void
+    {
+        $entre = $this->entrenador();
+        $alumno = $this->alumnoDe($entre);
+        $otro = $this->entrenador();
+        $rutinaAjena = $this->rutinaDe($otro);
+
+        $this->actingAs($entre)
+            ->post(route('seguimientos-entrenamiento.asignar', $alumno), ['rutina_id' => $rutinaAjena->id])
+            ->assertSessionHasErrors('rutina_id');
+    }
+
+    public function test_la_ficha_del_alumno_muestra_el_panel_de_entrenamiento(): void
+    {
+        $entre = $this->entrenador();
+        $alumno = Cliente::factory()->create(['entrenador_id' => $entre->id, 'estado' => ClienteEstado::Activo]);
+
+        $this->actingAs($entre)
+            ->get(route('clientes.show', $alumno))
+            ->assertOk()
+            ->assertSee('Asignar una de mis rutinas');
     }
 }

@@ -8,7 +8,9 @@ use App\Enums\UserRole;
 use App\Http\Requests\StoreClienteRequest;
 use App\Http\Requests\UpdateClienteRequest;
 use App\Models\Cliente;
+use App\Models\Dieta;
 use App\Models\Puesto;
+use App\Models\Rutina;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -90,13 +92,41 @@ class ClienteController extends Controller
      */
     public function show(Cliente $cliente): View
     {
-        if (! auth()->user()->puedeVerCliente($cliente)) {
+        $user = auth()->user();
+
+        if (! $user->puedeVerCliente($cliente)) {
             abort(403, 'Este cliente no está asignado a ti.');
         }
 
         $cliente->load(['user', 'entrenador.empleado', 'nutriologo.empleado']);
 
-        return view('clientes.show', ['cliente' => $cliente]);
+        $data = ['cliente' => $cliente];
+
+        // Panel de entrenamiento: para el entrenador del alumno (o el dueño).
+        $data['esEntrenadorDelCliente'] = $user->puedeGestionarEntrenamiento()
+            && ($user->isSuperAdmin() || $cliente->entrenador_id === $user->id);
+
+        if ($data['esEntrenadorDelCliente']) {
+            $data['seguimientosEntrenamiento'] = $cliente->seguimientosEntrenamiento()
+                ->with('rutina')->orderByDesc('fecha_inicio')->get();
+            $data['misRutinas'] = $user->isSuperAdmin()
+                ? Rutina::where('activa', true)->orderBy('nombre')->get()
+                : $user->rutinas()->where('activa', true)->orderBy('nombre')->get();
+        }
+
+        // Panel de nutrición: para el nutriólogo del paciente (o el dueño).
+        $data['esNutriologoDelCliente'] = $user->puedeGestionarNutricion()
+            && ($user->isSuperAdmin() || $cliente->nutriologo_id === $user->id);
+
+        if ($data['esNutriologoDelCliente']) {
+            $data['seguimientosNutricion'] = $cliente->seguimientosNutricion()
+                ->with('dieta')->orderByDesc('fecha_inicio')->get();
+            $data['misDietas'] = $user->isSuperAdmin()
+                ? Dieta::where('activa', true)->orderBy('nombre')->get()
+                : $user->dietas()->where('activa', true)->orderBy('nombre')->get();
+        }
+
+        return view('clientes.show', $data);
     }
 
     /**

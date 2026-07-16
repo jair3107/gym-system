@@ -25,14 +25,13 @@ class RutinaFactory extends Factory
             'descripcion' => fake()->optional()->sentence(),
             'activa' => fake()->boolean(80),
             'plan' => [
-                'duraciones' => [
-                    'calentamiento' => '10 min',
-                    'principal' => '30 min',
-                ],
                 'dias' => [
                     'lunes' => [
-                        'calentamiento' => 'Movilidad articular y bici 5 min',
-                        'principal' => 'Sentadilla 4×8, Press banca 4×8',
+                        'enfoque' => 'Pecho - Tríceps',
+                        'ejercicios' => [
+                            ['nombre' => 'Press banca', 'series' => '10, 8, 8, 6', 'apuntes' => ''],
+                            ['nombre' => 'Aperturas con mancuernas', 'series' => '2 x 8', 'apuntes' => ''],
+                        ],
                     ],
                 ],
             ],
