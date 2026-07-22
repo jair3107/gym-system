@@ -4,10 +4,17 @@ namespace Database\Seeders;
 
 use App\Enums\ClienteEstado;
 use App\Enums\EmpleadoEstado;
+use App\Enums\MembresiaEstado;
+use App\Enums\MetodoPago;
+use App\Enums\TipoTarjeta;
 use App\Enums\UserRole;
 use App\Models\Cliente;
+use App\Models\Membresia;
+use App\Models\Producto;
 use App\Models\Puesto;
+use App\Models\Servicio;
 use App\Models\User;
+use App\Models\Venta;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -35,6 +42,7 @@ class DatabaseSeeder extends Seeder
         $arnold = $this->crearEmpleado('Arnold Schwarzenegger', 'arnold@gym.test', Puesto::ENTRENADOR, 18000, $puestos);
         $sonia = $this->crearEmpleado('Sonia Zanahoria', 'sonia@gym.test', Puesto::NUTRIOLOGO, 15000, $puestos);
         $benito = $this->crearEmpleado('Benito Brócoli', 'benito@gym.test', Puesto::NUTRIOLOGO, 13500, $puestos);
+        $carla = $this->crearEmpleado('Carla Caja', 'carla@gym.test', Puesto::CAJERO, 12000, $puestos);
 
         // Reemplazo del empleado demo anterior: reasigna sus clientes y lo elimina.
         $this->reemplazarEmpleadoLegacy($larry, $sonia);
@@ -72,6 +80,136 @@ class DatabaseSeeder extends Seeder
 
         // Datos demo de entrenamiento: una rutina de Larry y un seguimiento con progreso.
         $this->sembrarEntrenamientoDemo($larry, $clienteUser->cliente);
+
+        // Catálogo de caja y una venta de ejemplo (membresía + producto).
+        $this->sembrarCajaDemo($carla, $clienteUser->cliente);
+    }
+
+    /**
+     * Siembra el catálogo de caja (membresías, productos, servicios) y una venta
+     * de ejemplo que deja al cliente demo con membresía vigente.
+     */
+    protected function sembrarCajaDemo(User $cajero, Cliente $cliente): void
+    {
+        // Catálogo de membresías.
+        $membresias = collect([
+            ['nombre' => 'Visita (pase de día)', 'precio' => 120, 'duracion_dias' => 1, 'descripcion' => 'Acceso por un día.'],
+            ['nombre' => 'Mensualidad', 'precio' => 650, 'duracion_dias' => 30, 'descripcion' => 'Acceso ilimitado por 30 días.'],
+            ['nombre' => 'Trimestral', 'precio' => 1750, 'duracion_dias' => 90, 'descripcion' => '3 meses con descuento.'],
+            ['nombre' => 'Anual', 'precio' => 6000, 'duracion_dias' => 365, 'descripcion' => '12 meses al mejor precio.'],
+        ])->mapWithKeys(fn ($m) => [
+            $m['nombre'] => Membresia::firstOrCreate(['nombre' => $m['nombre']], $m + ['activa' => true]),
+        ]);
+
+        // Catálogo de productos con inventario.
+        collect([
+            ['nombre' => 'Proteína de suero 1kg', 'precio' => 720, 'stock' => 25],
+            ['nombre' => 'Creatina 300g', 'precio' => 480, 'stock' => 18],
+            ['nombre' => 'Bebida isotónica', 'precio' => 35, 'stock' => 60],
+            ['nombre' => 'Shaker AURUM', 'precio' => 150, 'stock' => 40],
+            ['nombre' => 'Toalla deportiva', 'precio' => 220, 'stock' => 15],
+        ])->each(fn ($p) => Producto::firstOrCreate(['nombre' => $p['nombre']], $p + ['activo' => true]));
+
+        // Catálogo de servicios.
+        collect([
+            ['nombre' => 'Evaluación física', 'precio' => 300],
+            ['nombre' => 'Sesión con entrenador', 'precio' => 400],
+            ['nombre' => 'Sesión con nutriólogo', 'precio' => 350],
+            ['nombre' => 'Acceso a regadera', 'precio' => 40],
+        ])->each(fn ($s) => Servicio::firstOrCreate(['nombre' => $s['nombre']], $s + ['activo' => true]));
+
+        // Beneficios incluidos por plan (idempotente).
+        $this->incluirBeneficio($membresias['Anual'], Producto::class, 'Proteína de suero 1kg');
+        $this->incluirBeneficio($membresias['Anual'], Servicio::class, 'Evaluación física');
+        $this->incluirBeneficio($membresias['Anual'], Servicio::class, 'Sesión con nutriólogo');
+        $this->incluirBeneficio($membresias['Trimestral'], Producto::class, 'Shaker AURUM');
+        $this->incluirBeneficio($membresias['Trimestral'], Servicio::class, 'Evaluación física');
+
+        // Venta de ejemplo: una mensualidad + una proteína.
+        if (Venta::count() > 0) {
+            return;
+        }
+
+        $mensualidad = $membresias['Mensualidad'];
+        $proteina = Producto::where('nombre', 'Proteína de suero 1kg')->first();
+
+        $venta = Venta::create([
+            'cajero_id' => $cajero->id,
+            'cliente_id' => $cliente->id,
+            'total' => $mensualidad->precio + $proteina->precio,
+            'metodo_pago' => MetodoPago::Efectivo,
+            'notas' => 'Venta de ejemplo.',
+        ]);
+
+        $venta->items()->createMany([
+            [
+                'vendible_type' => 'membresia',
+                'vendible_id' => $mensualidad->id,
+                'descripcion' => $mensualidad->nombre,
+                'precio_unitario' => $mensualidad->precio,
+                'cantidad' => 1,
+                'subtotal' => $mensualidad->precio,
+            ],
+            [
+                'vendible_type' => 'producto',
+                'vendible_id' => $proteina->id,
+                'descripcion' => $proteina->nombre,
+                'precio_unitario' => $proteina->precio,
+                'cantidad' => 1,
+                'subtotal' => $proteina->precio,
+            ],
+        ]);
+
+        $proteina->decrement('stock');
+
+        // Tarjeta primaria del cliente demo (solo datos no sensibles).
+        $tarjeta = $cliente->tarjetas()->firstOrCreate(
+            ['ultimos4' => '4242'],
+            [
+                'titular' => $cliente->user->name,
+                'marca' => 'visa',
+                'tipo' => TipoTarjeta::Debito,
+                'mes_exp' => 12,
+                'anio_exp' => (int) now()->addYears(3)->format('Y'),
+                'primaria' => true,
+            ],
+        );
+
+        $inicio = now()->startOfDay();
+        $cliente->membresiasCliente()->create([
+            'membresia_id' => $mensualidad->id,
+            'venta_id' => $venta->id,
+            'cajero_id' => $cajero->id,
+            'fecha_inicio' => $inicio->toDateString(),
+            'fecha_fin' => $inicio->copy()->addDays($mensualidad->duracion_dias)->toDateString(),
+            'estado' => MembresiaEstado::Activa,
+            'auto_renovacion' => true,
+            'metodo_pago' => MetodoPago::Tarjeta,
+            'tarjeta_id' => $tarjeta->id,
+        ]);
+
+        $cliente->update(['estado' => ClienteEstado::Activo]);
+    }
+
+    /**
+     * Incluye (idempotente) un producto/servicio como beneficio de un plan.
+     *
+     * @param  class-string  $modeloClase
+     */
+    protected function incluirBeneficio(Membresia $membresia, string $modeloClase, string $nombre): void
+    {
+        $modelo = $modeloClase::where('nombre', $nombre)->first();
+
+        if (! $modelo) {
+            return;
+        }
+
+        $tipo = $modeloClase === Producto::class ? 'producto' : 'servicio';
+
+        $membresia->beneficios()->firstOrCreate([
+            'beneficiable_type' => $tipo,
+            'beneficiable_id' => $modelo->id,
+        ]);
     }
 
     /**

@@ -12,7 +12,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Recordatorios, autorenovación (autocobro) y vencimiento de suscripciones.
+        $schedule->command('membresias:procesar')->dailyAt('06:00');
     }
 
     /**

@@ -50,9 +50,20 @@
                     <div>
                         <h3 class="text-lg font-brand font-semibold text-white">{{ $cliente->user->name }}</h3>
                         <p class="text-sm text-zinc-500">{{ $cliente->user->email }}</p>
-                        <span class="badge mt-2 {{ $cliente->estado->badgeClasses() }}">
-                            {{ $cliente->estado->label() }}
-                        </span>
+                        @php($vigente = $cliente->membresiaVigente())
+                        <div class="flex flex-wrap items-center gap-2 mt-2">
+                            <span class="badge {{ $cliente->estado->badgeClasses() }}">
+                                {{ $cliente->estado->label() }}
+                            </span>
+                            @if ($vigente)
+                                <span class="badge bg-gold-400/15 text-gold-300 ring-1 ring-gold-400/20">
+                                    {{ $vigente->membresia?->nombre ?? 'Membresía' }} · vence {{ $vigente->fecha_fin->format('d/m/Y') }}
+                                    ({{ $vigente->dias_restantes }} {{ $vigente->dias_restantes === 1 ? 'día' : 'días' }})
+                                </span>
+                            @else
+                                <span class="badge bg-zinc-500/15 text-zinc-400 ring-1 ring-zinc-500/20">Sin membresía vigente</span>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>
@@ -116,6 +127,196 @@
                     </div>
                 </dl>
             </div>
+
+            {{-- Membresía / Suscripción --}}
+            @php($suscripcion = $cliente->membresiaVigente())
+            @php($suscripcion?->load(['membresia.beneficios.beneficiable', 'canjes.beneficiable']))
+            @php($puedeVenta = auth()->user()->puedeGestionarVentas())
+
+            @if ($suscripcion || $puedeVenta)
+                <div class="card p-6">
+                    <h3 class="section-title mb-4">Membresía / Suscripción</h3>
+
+                    @if ($suscripcion)
+                        <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-white/[0.06]">
+                            <div>
+                                <div class="text-zinc-100 font-medium">{{ $suscripcion->membresia?->nombre ?? 'Membresía' }}</div>
+                                <div class="text-sm text-zinc-500">
+                                    Vence {{ $suscripcion->fecha_fin->format('d/m/Y') }} · {{ $suscripcion->dias_restantes }} {{ $suscripcion->dias_restantes === 1 ? 'día' : 'días' }} restantes
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                @if ($suscripcion->auto_renovacion)
+                                    <span class="badge bg-gold-400/15 text-gold-300 ring-1 ring-gold-400/20">Auto-renovación activa</span>
+                                @else
+                                    <span class="badge bg-zinc-500/15 text-zinc-400 ring-1 ring-zinc-500/20">Sin auto-renovación</span>
+                                @endif
+                                @if ($puedeVenta && ($suscripcion->membresia?->renovable ?? false))
+                                    <form method="POST" action="{{ route('suscripciones.auto-renovacion', $suscripcion) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="auto_renovacion" value="{{ $suscripcion->auto_renovacion ? 0 : 1 }}">
+                                        <button type="submit" class="text-sm text-gold-400 hover:text-gold-300">
+                                            {{ $suscripcion->auto_renovacion ? 'Desactivar' : 'Activar' }}
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
+
+                        <x-input-error :messages="$errors->get('auto_renovacion')" class="mt-2" />
+
+                        @if ($suscripcion->auto_renovacion)
+                            <p class="text-xs text-zinc-500 mt-2">
+                                Autocobro con:
+                                <span class="text-zinc-300">
+                                    {{ $suscripcion->tarjeta ? $suscripcion->tarjeta->marca_label.' '.$suscripcion->tarjeta->mascara : ($cliente->tarjetaPrimaria()?->mascara ?? 'tarjeta primaria') }}
+                                </span>
+                            </p>
+                        @endif
+
+                        @php($beneficios = $suscripcion->membresia?->beneficios ?? collect())
+                        <div class="mt-4">
+                            <p class="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Beneficios incluidos</p>
+                            @forelse ($beneficios as $b)
+                                <div class="flex items-center justify-between py-2 border-b border-white/[0.04] last:border-0">
+                                    <div class="text-sm text-zinc-300">
+                                        {{ $b->beneficiable?->nombre ?? '— (eliminado) —' }}
+                                        <span class="text-xs text-zinc-600">· {{ $b->tipoLabel() }}</span>
+                                    </div>
+                                    @if ($puedeVenta && $b->beneficiable)
+                                        <form method="POST" action="{{ route('canjes.store', $suscripcion) }}">
+                                            @csrf
+                                            <input type="hidden" name="beneficiable_type" value="{{ $b->beneficiable_type }}">
+                                            <input type="hidden" name="beneficiable_id" value="{{ $b->beneficiable_id }}">
+                                            <button type="submit" class="text-sm text-gold-400 hover:text-gold-300">Entregar</button>
+                                        </form>
+                                    @endif
+                                </div>
+                            @empty
+                                <p class="text-sm text-zinc-500">Este plan no incluye beneficios.</p>
+                            @endforelse
+                            <x-input-error :messages="$errors->get('beneficio')" class="mt-2" />
+                        </div>
+
+                        @if ($suscripcion->canjes->isNotEmpty())
+                            <div class="mt-4">
+                                <p class="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Entregas registradas</p>
+                                @foreach ($suscripcion->canjes()->latest()->take(8)->get() as $canje)
+                                    <div class="flex items-center justify-between py-1.5 text-sm">
+                                        <span class="text-zinc-400">{{ $canje->descripcion }} @if ($canje->cantidad > 1)<span class="text-zinc-600">×{{ $canje->cantidad }}</span>@endif</span>
+                                        <span class="text-xs text-zinc-600">{{ $canje->created_at->format('d/m/Y H:i') }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    @else
+                        <p class="text-sm text-zinc-500">
+                            Sin membresía vigente.
+                            <a href="{{ route('ventas.create') }}" class="text-gold-400 hover:text-gold-300">Registrar una venta</a>.
+                        </p>
+                    @endif
+                </div>
+            @endif
+
+            {{-- Métodos de pago (tarjetas) --}}
+            @if ($puedeVenta)
+                @php($tarjetas = $cliente->tarjetas()->orderByDesc('primaria')->latest()->get())
+                <div class="card p-6">
+                    <h3 class="section-title mb-1">Métodos de pago</h3>
+                    <p class="text-xs text-zinc-500 mb-4">
+                        Se requiere una tarjeta primaria para activar la auto-renovación.
+                        Por seguridad solo se guardan los últimos 4 dígitos.
+                    </p>
+
+                    <div class="space-y-2 mb-6">
+                        @forelse ($tarjetas as $tarjeta)
+                            <div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg border border-white/[0.05] bg-ink-800/60">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-sm text-zinc-200">{{ $tarjeta->marca_label }} {{ $tarjeta->mascara }}</span>
+                                    <span class="text-xs text-zinc-500">{{ $tarjeta->tipo->label() }} · vence {{ $tarjeta->vence }}</span>
+                                    @if ($tarjeta->estaVencida())
+                                        <span class="badge bg-red-500/15 text-red-400 ring-1 ring-red-500/20">Vencida</span>
+                                    @endif
+                                    @if ($tarjeta->primaria)
+                                        <span class="badge bg-gold-400/15 text-gold-300 ring-1 ring-gold-400/20">Primaria</span>
+                                    @endif
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    @unless ($tarjeta->primaria)
+                                        <form method="POST" action="{{ route('tarjetas.primaria', $tarjeta) }}">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" class="text-sm text-gold-400 hover:text-gold-300">Hacer primaria</button>
+                                        </form>
+                                    @endunless
+                                    <form method="POST" action="{{ route('tarjetas.destroy', $tarjeta) }}"
+                                          onsubmit="return confirm('¿Eliminar esta tarjeta?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-sm text-zinc-500 hover:text-red-400">Eliminar</button>
+                                    </form>
+                                </div>
+                            </div>
+                        @empty
+                            <p class="text-sm text-zinc-500">El cliente no tiene tarjetas guardadas.</p>
+                        @endforelse
+                    </div>
+
+                    <form method="POST" action="{{ route('tarjetas.store', $cliente) }}" class="border-t border-white/[0.06] pt-4">
+                        @csrf
+                        <p class="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Agregar tarjeta</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="sm:col-span-2">
+                                <x-input-label for="titular" value="Nombre del titular" />
+                                <x-text-input id="titular" name="titular" type="text" class="mt-1 block w-full"
+                                              :value="old('titular')" placeholder="Como aparece en la tarjeta" />
+                                <x-input-error :messages="$errors->get('titular')" class="mt-2" />
+                            </div>
+                            <div class="sm:col-span-2">
+                                <x-input-label for="numero" value="Número de tarjeta" />
+                                <x-text-input id="numero" name="numero" type="text" inputmode="numeric" autocomplete="off"
+                                              class="mt-1 block w-full" :value="old('numero')" placeholder="•••• •••• •••• ••••" />
+                                <x-input-error :messages="$errors->get('numero')" class="mt-2" />
+                            </div>
+                            <div>
+                                <x-input-label for="tipo" value="Tipo" />
+                                <select id="tipo" name="tipo" class="select mt-1 w-full">
+                                    @foreach (\App\Enums\TipoTarjeta::cases() as $t)
+                                        <option value="{{ $t->value }}" @selected(old('tipo') === $t->value)>{{ $t->label() }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('tipo')" class="mt-2" />
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div>
+                                    <x-input-label for="mes_exp" value="Mes" />
+                                    <x-text-input id="mes_exp" name="mes_exp" type="number" min="1" max="12" class="mt-1 block w-full"
+                                                  :value="old('mes_exp')" placeholder="MM" />
+                                </div>
+                                <div>
+                                    <x-input-label for="anio_exp" value="Año" />
+                                    <x-text-input id="anio_exp" name="anio_exp" type="number" min="2024" max="2100" class="mt-1 block w-full"
+                                                  :value="old('anio_exp')" placeholder="AAAA" />
+                                </div>
+                                <div>
+                                    <x-input-label for="cvv" value="CVV" />
+                                    <x-text-input id="cvv" name="cvv" type="text" inputmode="numeric" autocomplete="off" class="mt-1 block w-full"
+                                                  placeholder="•••" />
+                                </div>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <x-input-error :messages="$errors->get('mes_exp')" class="mt-1" />
+                                <x-input-error :messages="$errors->get('anio_exp')" class="mt-1" />
+                                <x-input-error :messages="$errors->get('cvv')" class="mt-1" />
+                            </div>
+                        </div>
+                        <div class="flex justify-end mt-4">
+                            <x-primary-button>Guardar tarjeta</x-primary-button>
+                        </div>
+                    </form>
+                </div>
+            @endif
 
             {{-- Panel de entrenamiento (para el entrenador del alumno) --}}
             @if (!empty($esEntrenadorDelCliente))

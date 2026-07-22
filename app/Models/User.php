@@ -205,6 +205,33 @@ class User extends Authenticatable
     }
 
     /**
+     * ¿Puede gestionar el módulo de caja/ventas (productos, servicios y
+     * registro de ventas)? El dueño (superadmin) o un empleado con puesto
+     * "cajero".
+     */
+    public function puedeGestionarVentas(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPuesto(Puesto::CAJERO);
+    }
+
+    /**
+     * ¿Puede gestionar el catálogo de planes de membresía? El dueño
+     * (superadmin), un empleado con puesto "admin" o con puesto "cajero".
+     */
+    public function puedeGestionarMembresias(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPuesto(Puesto::ADMIN, Puesto::CAJERO);
+    }
+
+    /**
+     * Ventas registradas por este usuario (como cajero).
+     */
+    public function ventas(): HasMany
+    {
+        return $this->hasMany(Venta::class, 'cajero_id');
+    }
+
+    /**
      * Dietas creadas por este usuario (como nutriólogo).
      */
     public function dietas(): HasMany

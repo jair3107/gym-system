@@ -78,6 +78,59 @@ class Cliente extends Model
     }
 
     /**
+     * Membresías vendidas a este cliente (con su vigencia).
+     */
+    public function membresiasCliente(): HasMany
+    {
+        return $this->hasMany(MembresiaCliente::class);
+    }
+
+    /**
+     * Ventas registradas a nombre de este cliente.
+     */
+    public function ventas(): HasMany
+    {
+        return $this->hasMany(Venta::class);
+    }
+
+    /**
+     * Tarjetas (métodos de pago) guardadas del cliente.
+     */
+    public function tarjetas(): HasMany
+    {
+        return $this->hasMany(Tarjeta::class);
+    }
+
+    /**
+     * La tarjeta marcada como método de pago primario, si existe.
+     */
+    public function tarjetaPrimaria(): ?Tarjeta
+    {
+        return $this->tarjetas()->primaria()->first();
+    }
+
+    /**
+     * ¿Tiene un método de pago primario asignado?
+     */
+    public function tienePrimaria(): bool
+    {
+        return $this->tarjetas()->primaria()->exists();
+    }
+
+    /**
+     * La membresía vigente del cliente (activa y sin vencer), o null.
+     */
+    public function membresiaVigente(): ?MembresiaCliente
+    {
+        return $this->membresiasCliente()
+            ->activas()
+            ->whereDate('fecha_fin', '>=', now()->toDateString())
+            ->orderByDesc('fecha_fin')
+            ->with('membresia')
+            ->first();
+    }
+
+    /**
      * Client's display name, delegated to the user account.
      */
     public function getNombreAttribute(): ?string

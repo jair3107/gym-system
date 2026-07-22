@@ -69,5 +69,7 @@ class Kernel extends HttpKernel
         'gestiona.clientes' => \App\Http\Middleware\EnsureCanManageClientes::class,
         'gestiona.nutricion' => \App\Http\Middleware\EnsureEsNutriologo::class,
         'gestiona.entrenamiento' => \App\Http\Middleware\EnsureEsEntrenador::class,
+        'gestiona.ventas' => \App\Http\Middleware\EnsureEsCajero::class,
+        'gestiona.membresias' => \App\Http\Middleware\EnsurePuedeGestionarMembresias::class,
     ];
 }

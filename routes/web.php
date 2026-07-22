@@ -13,6 +13,14 @@ use App\Http\Controllers\PuestoController;
 use App\Http\Controllers\RutinaController;
 use App\Http\Controllers\SeguimientoEntrenamientoController;
 use App\Http\Controllers\SeguimientoNutricionController;
+use App\Http\Controllers\BeneficioCanjeController;
+use App\Http\Controllers\MembresiaController;
+use App\Http\Controllers\NotificacionController;
+use App\Http\Controllers\ProductoController;
+use App\Http\Controllers\ServicioController;
+use App\Http\Controllers\SuscripcionController;
+use App\Http\Controllers\TarjetaController;
+use App\Http\Controllers\VentaController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -92,6 +100,41 @@ Route::middleware(['auth', 'gestiona.entrenamiento'])->group(function () {
     // Asignar una rutina a un alumno desde su ficha (crea el seguimiento).
     Route::post('clientes/{cliente}/asignar-rutina', [SeguimientoEntrenamientoController::class, 'asignarRutina'])
         ->name('seguimientos-entrenamiento.asignar');
+});
+
+// Catálogo de planes de membresía (dueño, admin o cajero)
+Route::middleware(['auth', 'gestiona.membresias'])->group(function () {
+    Route::resource('membresias', MembresiaController::class)->except('show')
+        ->parameters(['membresias' => 'membresia']);
+});
+
+// Caja/Ventas: catálogos y registro de ventas (dueño o empleado con puesto cajero)
+Route::middleware(['auth', 'gestiona.ventas'])->group(function () {
+    Route::resource('productos', ProductoController::class)->except('show');
+    Route::resource('servicios', ServicioController::class)->except('show');
+
+    // Registro de ventas (no se editan una vez emitidas).
+    Route::resource('ventas', VentaController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+
+    // Entrega (canje) de un beneficio incluido en una suscripción activa.
+    Route::post('membresias-cliente/{membresiaCliente}/canjes', [BeneficioCanjeController::class, 'store'])
+        ->name('canjes.store');
+
+    // Activar/desactivar la auto-renovación de una suscripción.
+    Route::patch('membresias-cliente/{membresiaCliente}/auto-renovacion', [SuscripcionController::class, 'toggleAutoRenovacion'])
+        ->name('suscripciones.auto-renovacion');
+
+    // Métodos de pago (tarjetas) del cliente.
+    Route::post('clientes/{cliente}/tarjetas', [TarjetaController::class, 'store'])->name('tarjetas.store');
+    Route::patch('tarjetas/{tarjeta}/primaria', [TarjetaController::class, 'primaria'])->name('tarjetas.primaria');
+    Route::delete('tarjetas/{tarjeta}', [TarjetaController::class, 'destroy'])->name('tarjetas.destroy');
+});
+
+// Centro de notificaciones (cualquier usuario autenticado)
+Route::middleware('auth')->group(function () {
+    Route::get('notificaciones', [NotificacionController::class, 'index'])->name('notificaciones.index');
+    Route::patch('notificaciones/{id}/leida', [NotificacionController::class, 'marcarLeida'])->name('notificaciones.leida');
+    Route::patch('notificaciones/leer-todas', [NotificacionController::class, 'marcarTodas'])->name('notificaciones.leer-todas');
 });
 
 // Cliente routes
